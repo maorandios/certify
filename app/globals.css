@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --logo-mark: #ff5900;
+  --logo-ink: #5e0800;
+  --color-brand-hover: #0d9488;
+  --color-brand-foreground: #f0fdfa;
+  --color-brand-soft: #ccfbf1;
+  --status-ok: #0f766e;
+  --status-ok-soft: #ccfbf1;
+  --status-warn: #d97706;
+  --status-warn-soft: #fef3c7;
+  --status-bad: #dc2626;
+  --status-bad-soft: #fee2e2;
+  --status-review: #57534e;
+  --status-review-soft: #e7e5e4;
+  --status-empty: #78716c;
+  --status-empty-soft: #f5f5f4;
+  --surface: #ffffff;
+  --surface-muted: #fef6f2;
+  --ink: #1c1917;
+  --ink-muted: #57534e;
+  --line: #e7e5e4;
+  --radius-card: 16px;
+  --radius-sheet: 24px;
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.06), 0 8px 24px rgb(28 25 23 / 0.04);
+}
+
+@theme inline {
+  --color-background: var(--surface-muted);
+  --color-foreground: var(--ink);
+  --color-brand: var(--color-brand);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-brand-foreground: var(--color-brand-foreground);
+  --color-brand-soft: var(--color-brand-soft);
+  --font-sans: var(--font-google-sans), "Google Sans", Arial, sans-serif;
+}
+
+html {
+  background: var(--surface-muted);
+}
+
+body {
+  background: var(--surface-muted);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-optical-sizing: auto;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-feature-settings: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
