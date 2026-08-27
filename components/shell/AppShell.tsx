@@ -13,7 +13,6 @@ import { JobsSheet } from "@/components/upload/JobsSheet";
 import { UploadComposer } from "@/components/upload/UploadComposer";
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const hydrated = useAppStore((state) => state.ui.hydrated);
   const hydrate = useAppStore((state) => state.hydrate);
   const jobCount = useAppStore(
     (state) =>
@@ -23,9 +22,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    void Promise.resolve(useAppStore.persist.rehydrate()).finally(() =>
-      hydrate(),
-    );
+    let cancelled = false;
+    const finish = () => {
+      if (!cancelled) hydrate();
+    };
+
+    try {
+      void Promise.resolve(useAppStore.persist.rehydrate()).then(
+        finish,
+        finish,
+      );
+    } catch {
+      finish();
+    }
+
+    const timeout = window.setTimeout(finish, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
   }, [hydrate]);
 
   return (
@@ -33,11 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <DesktopTopNav />
       <TopBar />
       <main className="relative mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-x-hidden overflow-y-auto pb-[calc(6.75rem+env(safe-area-inset-bottom))] lg:px-6 lg:pb-8">
-        {hydrated ? (
-          <PageTransition>{children}</PageTransition>
-        ) : (
-          <HomeSkeleton />
-        )}
+        <PageTransition>{children}</PageTransition>
       </main>
       {jobCount > 0 ? (
         <div className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4 lg:hidden" style={{ bottom: "calc(5.6rem + env(safe-area-inset-bottom))" }}>
@@ -55,20 +66,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           className: "font-sans",
         }}
       />
-    </div>
-  );
-}
-
-function HomeSkeleton() {
-  return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-3 px-4 py-4">
-      <div className="h-20 animate-pulse rounded-2xl bg-stone-200/80" />
-      {Array.from({ length: 3 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-20 animate-pulse rounded-2xl bg-stone-200/80"
-        />
-      ))}
     </div>
   );
 }

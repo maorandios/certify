@@ -43,7 +43,6 @@ html {
 
 body {
   height: 100%;
-  overflow: hidden;
   background: var(--surface-muted);
   color: var(--ink);
   font-family: var(--font-sans);
