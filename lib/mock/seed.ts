@@ -11,6 +11,7 @@ function avatar(seed: string, color: string, initials: string): string {
 }
 
 export function createSeed(now = new Date()): {
+  generatedAt: string;
   employees: Employee[];
   documents: DocumentRecord[];
   activity: ActivityItem[];
@@ -489,7 +490,7 @@ export function createSeed(now = new Date()): {
     },
   ];
 
-  return { employees, documents, activity };
+  return { generatedAt: now.toISOString(), employees, documents, activity };
 }
 
 export const HAPPY_PATH_EMPLOYEE_ID = "emp-yosef";

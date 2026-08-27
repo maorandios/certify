@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -13,6 +14,7 @@ import { cn } from "@/lib/cn";
 import { activityTypeLabels, documentTypeLabels } from "@/lib/copy";
 import { formatRelativeHe } from "@/lib/dates";
 import { isExpiringAlert } from "@/lib/activity";
+import { useAppStore } from "@/lib/store";
 import type {
   ActivityActionKind,
   ActivityItem,
@@ -36,6 +38,23 @@ const typeLabel: Record<ActivityType, string> = {
 };
 
 const metaText = "text-[12px] font-normal leading-4 text-stone-500";
+
+/**
+ * Relative time depends on Date.now(), so the server-rendered label drifts
+ * from the client's. Rendering it only after mount avoids the hydration
+ * mismatch that breaks React on production builds.
+ */
+function RelativeTime({ timestamp }: { timestamp: string }) {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    setLabel(formatRelativeHe(timestamp));
+  }, [timestamp]);
+  return (
+    <time className="text-xs text-stone-400" suppressHydrationWarning>
+      {label}
+    </time>
+  );
+}
 
 const typeRing: Record<ActivityType, string> = {
   action: "ring-orange-300",
@@ -65,12 +84,13 @@ export function ActivityCard({
   onEmployeePress,
   onPostActionsPress,
 }: ActivityCardProps) {
+  const seedAnchor = useAppStore((state) => state.seedAnchor);
   const employee = employees.find((entry) => entry.id === item.employeeId);
   const related = (item.relatedEmployeeIds ?? [])
     .map((id) => employees.find((entry) => entry.id === id))
     .filter((entry): entry is Employee => Boolean(entry));
   const document = documents.find((entry) => entry.id === item.documentId);
-  const expiring = isExpiringAlert(item, documents);
+  const expiring = isExpiringAlert(item, documents, new Date(seedAnchor));
   const clickable = item.type === "processing";
   const labelColor =
     item.type === "alert" && expiring ? "text-[var(--status-warn)]" : typeLabel[item.type];
@@ -109,9 +129,7 @@ export function ActivityCard({
             <span className="text-stone-300" aria-hidden>
               ·
             </span>
-            <time className="text-xs text-stone-400">
-              {formatRelativeHe(item.timestamp)}
-            </time>
+            <RelativeTime timestamp={item.timestamp} />
           </div>
           <button
             type="button"

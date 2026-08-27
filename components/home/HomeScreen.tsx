@@ -11,17 +11,20 @@ import { useAppStore } from "@/lib/store";
 import type { ActivityActionKind } from "@/lib/types";
 
 export function HomeScreen() {
+  const seedAnchor = useAppStore((state) => state.seedAnchor);
   const employees = useAppStore((state) => state.employees);
   const documents = useAppStore((state) => state.documents);
   const activity = useAppStore((state) => state.activity);
   const jobs = useAppStore((state) => state.jobs);
   const openComposer = useAppStore((state) => state.openComposer);
   const openJobsSheet = useAppStore((state) => state.openJobsSheet);
-  const attention = getDocumentAttention(documents);
+  const statusNow = new Date(seedAnchor);
+  const attention = getDocumentAttention(documents, statusNow);
   const processing = buildProcessingActivity(jobs);
   const items = sortActivityItems(
     processing ? [processing, ...activity] : activity,
     documents,
+    statusNow,
   );
 
   function handleAction(kind: ActivityActionKind) {

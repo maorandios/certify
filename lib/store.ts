@@ -17,6 +17,12 @@ type UiState = {
 };
 
 type AppState = {
+  /**
+   * ISO timestamp of when the seed data was generated. All time-relative
+   * status math must use this anchor instead of `new Date()` so the server
+   * and client render identical HTML (avoids hydration errors).
+   */
+  seedAnchor: string;
   employees: Employee[];
   documents: DocumentRecord[];
   activity: ActivityItem[];
@@ -42,6 +48,7 @@ function previewKind(mime: string): "image" | "pdf" {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      seedAnchor: seed.generatedAt,
       employees: seed.employees,
       documents: seed.documents,
       activity: seed.activity,
@@ -134,11 +141,12 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "certify-p0",
-      version: 5,
+      version: 6,
       migrate: (persistedState) => {
         const previous = persistedState as { jobs?: UploadJob[] };
         const next = createSeed();
         return {
+          seedAnchor: next.generatedAt,
           employees: next.employees,
           documents: next.documents,
           activity: next.activity,
@@ -147,6 +155,7 @@ export const useAppStore = create<AppState>()(
       },
       skipHydration: true,
       partialize: (state) => ({
+        seedAnchor: state.seedAnchor,
         employees: state.employees,
         documents: state.documents,
         activity: state.activity,
