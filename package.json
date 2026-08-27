@@ -2,6 +2,13 @@
   "name": "certify",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "chrome 100",
+    "edge 100",
+    "firefox 100",
+    "ios_saf 15",
+    "safari 15"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
