@@ -44,14 +44,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [hydrate]);
 
   return (
-    <div className="flex h-dvh max-h-dvh flex-col overflow-hidden">
+    <div className="flex h-svh flex-col bg-[#FEF6F2]">
       <DesktopTopNav />
       <TopBar />
-      <main className="relative mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col overflow-hidden lg:px-6">
+      <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
         <PageTransition>{children}</PageTransition>
       </main>
       {jobCount > 0 ? (
-        <div className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4 lg:hidden" style={{ bottom: "calc(5.6rem + env(safe-area-inset-bottom))" }}>
+        <div className="flex shrink-0 justify-center px-4 pb-2 lg:hidden">
           <ProcessingCapsule placement="mobile" />
         </div>
       ) : null}

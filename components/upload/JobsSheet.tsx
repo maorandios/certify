@@ -43,7 +43,9 @@ export function JobsSheet() {
     return (
       <Dialog
         open={open}
-        onOpenChange={(next) => !next && closeJobsSheet()}
+        onOpenChange={(next) => {
+          if (!next) closeJobsSheet();
+        }}
         title={copy.jobsTitle}
       >
         {body}
@@ -54,7 +56,9 @@ export function JobsSheet() {
   return (
     <Drawer
       open={open}
-      onOpenChange={(next) => !next && closeJobsSheet()}
+      onOpenChange={(next) => {
+        if (!next) closeJobsSheet();
+      }}
       title={copy.jobsTitle}
     >
       {body}

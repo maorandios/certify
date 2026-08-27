@@ -115,7 +115,9 @@ export function UploadComposer() {
     return (
       <Dialog
         open={open}
-        onOpenChange={(next) => !next && closeComposer()}
+        onOpenChange={(next) => {
+          if (!next) closeComposer();
+        }}
         title={copy.composerTitle}
       >
         {sources}
@@ -126,7 +128,9 @@ export function UploadComposer() {
   return (
     <Drawer
       open={open}
-      onOpenChange={(next) => !next && closeComposer()}
+      onOpenChange={(next) => {
+        if (!next) closeComposer();
+      }}
       title={copy.composerTitle}
     >
       {sources}

@@ -5,10 +5,7 @@ import { SettingsEntry } from "./SettingsEntry";
 
 export function TopBar() {
   return (
-    <header
-      className="sticky top-0 z-30 bg-[var(--surface-muted)] lg:hidden"
-      style={{ paddingTop: "env(safe-area-inset-top)" }}
-    >
+    <header className="shrink-0 bg-[#FEF6F2] pt-[env(safe-area-inset-top)] lg:hidden">
       <div className="flex h-14 items-center justify-between px-5">
         <h1 className="m-0">
           <AppBrand />

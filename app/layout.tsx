@@ -55,7 +55,7 @@ export default function RootLayout({
       dir="rtl"
       className={`${googleSans.variable} ${googleSans.className} h-full`}
     >
-      <body className="h-full font-sans antialiased">
+      <body className="h-full bg-[#FEF6F2] font-sans antialiased">
         <AppShell>{children}</AppShell>
       </body>
     </html>

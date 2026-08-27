@@ -15,7 +15,7 @@ export function DesktopTopNav() {
   const openComposer = useAppStore((state) => state.openComposer);
 
   return (
-    <header className="sticky top-0 z-40 hidden bg-[var(--surface-muted)] lg:block">
+    <header className="hidden shrink-0 bg-[#FEF6F2] lg:block">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-6">
         <AppBrand />
         <nav aria-label="ניווט ראשי" className="flex items-center gap-1">

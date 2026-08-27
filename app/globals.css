@@ -3,9 +3,10 @@
 :root {
   --logo-mark: #ff5900;
   --logo-ink: #5e0800;
-  --color-brand-hover: #0d9488;
-  --color-brand-foreground: #f0fdfa;
-  --color-brand-soft: #ccfbf1;
+  --color-brand: #ff5900;
+  --color-brand-hover: #e14f00;
+  --color-brand-foreground: #fff7f2;
+  --color-brand-soft: #ffe8dc;
   --status-ok: #0f766e;
   --status-ok-soft: #ccfbf1;
   --status-warn: #d97706;
@@ -38,14 +39,14 @@
 
 html {
   height: 100%;
-  background: var(--surface-muted);
+  background: #fef6f2;
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   height: 100%;
-  background: var(--surface-muted);
+  background: #fef6f2;
   color: var(--ink);
   font-family: var(--font-sans);
   font-optical-sizing: auto;
@@ -58,18 +59,18 @@ body {
 button,
 input,
 textarea,
-select {
+select,
+a {
   font-family: inherit;
   font-feature-settings: inherit;
+  touch-action: manipulation;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
