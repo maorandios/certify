@@ -24,14 +24,14 @@ export function DocumentPulse({
   return (
     <section
       aria-label="מצב מסמכים"
-      className="flex aspect-square w-full flex-col rounded-[40px] border border-[#FEF6F2]/10 bg-[#210900] p-3 shadow-[inset_0_1px_0_rgba(254,246,242,0.08)]"
+      className="flex aspect-[5/3] w-full flex-col rounded-[32px] border border-[#FEF6F2]/10 bg-[#2B2B2B] p-2.5 shadow-[inset_0_1px_0_rgba(254,246,242,0.08)]"
     >
-      <header className="mb-2.5 flex items-start justify-between gap-3">
+      <header className="mb-1.5 flex items-start justify-between gap-3">
         <div className="ps-3">
-          <h2 className="text-[24px] font-semibold leading-7 tracking-tight text-[#FEF6F2]">
+          <h2 className="text-[22px] font-semibold leading-6 text-[#FEF6F2]">
             מסמכים
           </h2>
-          <p className="mt-0.5 text-[13px] font-medium text-[#FF5900]">
+          <p className="mt-0.5 text-[12px] font-medium text-[#FF5900]">
             {needing === 0
               ? "הכל בתוקף"
               : needing === 1
@@ -91,7 +91,7 @@ function MetricTile({
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-0 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[28px] px-3 py-4 text-center",
+        "relative flex h-full min-h-0 w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-[22px] px-2 py-2 text-center",
         lit
           ? "bg-[#FEF6F2]/25 text-[#FEF6F2]"
           : orange
@@ -101,7 +101,7 @@ function MetricTile({
     >
       <Icon
         className={cn(
-          "size-[23px]",
+          "size-[18px]",
           orange ? "text-[#FF5900]" : "text-[#FEF6F2]",
         )}
         strokeWidth={2}
@@ -109,7 +109,7 @@ function MetricTile({
       />
       <p
         className={cn(
-          "text-[36px] font-semibold leading-none tracking-tight tabular-nums",
+          "text-[26px] font-semibold leading-none tabular-nums",
           orange && "drop-shadow-[0_0_14px_rgba(255,89,0,0.95)]",
         )}
       >
@@ -117,7 +117,7 @@ function MetricTile({
       </p>
       <p
         className={cn(
-          "text-[14px] font-medium leading-5",
+          "text-[12px] font-medium leading-4",
             lit
               ? "text-[#FEF6F2]"
               : orange
@@ -132,15 +132,15 @@ function MetricTile({
 }
 
 function ProgressRing({ value, max }: { value: number; max: number }) {
-  const size = 52;
-  const stroke = 3.5;
+  const size = 44;
+  const stroke = 3;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(1, Math.max(0, value / max));
   const offset = circumference * (1 - progress);
 
   return (
-    <div className="relative size-[52px] shrink-0" aria-hidden>
+    <div className="relative size-[44px] shrink-0" aria-hidden>
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}
@@ -163,7 +163,7 @@ function ProgressRing({ value, max }: { value: number; max: number }) {
           className="drop-shadow-[0_0_6px_rgba(255,89,0,0.7)]"
         />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums text-[#FEF6F2]">
+      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums text-[#FEF6F2]">
         {value}/{max}
       </span>
     </div>

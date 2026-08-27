@@ -2,7 +2,7 @@
 
 :root {
   --logo-mark: #ff5900;
-  --logo-ink: #5e0800;
+  --logo-ink: #2b2b2b;
   --color-brand: #ff5900;
   --color-brand-hover: #e14f00;
   --color-brand-foreground: #fff7f2;
@@ -50,6 +50,7 @@ body {
   color: var(--ink);
   font-family: var(--font-sans);
   font-optical-sizing: auto;
+  letter-spacing: -0.03em;
   line-height: 1.5;
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;

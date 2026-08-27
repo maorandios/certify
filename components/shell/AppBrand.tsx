@@ -14,7 +14,7 @@ export function AppBrand() {
           strokeWidth={0}
         />
       </span>
-      <span className="text-lg font-semibold tracking-tight text-[var(--logo-ink)]">
+      <span className="text-lg font-semibold text-[var(--logo-ink)]">
         {copy.appName}
       </span>
     </div>
