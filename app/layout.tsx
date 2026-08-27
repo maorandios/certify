@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   applicationName: "Certify",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
-    title: "פעילות",
+    statusBarStyle: "black-translucent",
+    title: "סרטיפי",
   },
   formatDetection: {
     telephone: false,
@@ -36,9 +36,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0F766E",
+  themeColor: "#FEF6F2",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

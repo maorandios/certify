@@ -39,6 +39,8 @@
 html {
   height: 100%;
   background: var(--surface-muted);
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -48,6 +50,9 @@ body {
   font-family: var(--font-sans);
   font-optical-sizing: auto;
   line-height: 1.5;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 button,
