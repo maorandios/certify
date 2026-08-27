@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { copy } from "@/lib/copy";
 import type {
   ActivityActionKind,
   ActivityItem,
@@ -72,11 +71,5 @@ export function ActivityFeed({
         onOpenEmployee={setPreviewEmployee}
       />
     </>
-  );
-}
-
-export function FeedHeading() {
-  return (
-    <h2 className="mb-2.5 text-sm font-medium text-stone-500">{copy.feedTitle}</h2>
   );
 }

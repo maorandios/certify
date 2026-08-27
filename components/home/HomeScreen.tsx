@@ -1,12 +1,12 @@
 "use client";
 
 import { DocumentPulse } from "./DocumentPulse";
-import { ActivityFeed, FeedHeading } from "./ActivityFeed";
+import { ActivityFeed } from "./ActivityFeed";
 import {
   buildProcessingActivity,
   sortActivityItems,
 } from "@/lib/activity";
-import { getDocumentAttention } from "@/lib/status";
+import { getDocumentAttention, isActiveDocument } from "@/lib/status";
 import { useAppStore } from "@/lib/store";
 import type { ActivityActionKind } from "@/lib/types";
 
@@ -30,10 +30,13 @@ export function HomeScreen() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-4 px-4 py-4 lg:max-w-3xl lg:px-0 lg:py-8">
-      <DocumentPulse attention={attention} />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 py-3 lg:max-w-3xl lg:px-0 lg:py-8">
+      <DocumentPulse
+        attention={attention}
+        userCount={employees.length}
+        activeCount={documents.filter(isActiveDocument).length}
+      />
       <section>
-        <FeedHeading />
         <ActivityFeed
           items={items}
           employees={employees}

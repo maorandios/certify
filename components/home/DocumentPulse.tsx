@@ -1,52 +1,171 @@
+import {
+  ClockFading,
+  OctagonX,
+  SquareDashedMousePointer,
+  Users,
+} from "lucide-react";
+import { cn } from "@/lib/cn";
 import { attentionTotal, type DocumentAttention } from "@/lib/status";
-import { copy } from "@/lib/copy";
 
 type DocumentPulseProps = {
   attention: DocumentAttention;
+  userCount: number;
+  activeCount: number;
 };
 
-export function DocumentPulse({ attention }: DocumentPulseProps) {
-  const total = attentionTotal(attention);
-  const headline =
-    total === 0
-      ? copy.allClearTitle
-      : total === 1
-        ? "מסמך אחד דורש טיפול"
-        : `${total} מסמכים דורשים טיפול`;
+export function DocumentPulse({
+  attention,
+  userCount,
+  activeCount,
+}: DocumentPulseProps) {
+  const needing = attentionTotal(attention);
+  const healthy = Math.max(0, activeCount - needing);
 
   return (
-    <section className="rounded-2xl border border-stone-200/80 bg-white px-4 py-3.5">
-      <p className="text-[15px] font-semibold leading-6">{headline}</p>
-      {total === 0 ? (
-        <p className="mt-1 text-sm text-stone-500">{copy.allClearBody}</p>
-      ) : (
-        <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-stone-600">
-          {attention.expired > 0 ? (
-            <span>
-              <span className="font-semibold tabular-nums text-[var(--status-bad)]">
-                {attention.expired}
-              </span>{" "}
-              {attention.expired === 1 ? "פג תוקף" : "פגי תוקף"}
-            </span>
-          ) : null}
-          {attention.expiring > 0 ? (
-            <span>
-              <span className="font-semibold tabular-nums text-[var(--status-warn)]">
-                {attention.expiring}
-              </span>{" "}
-              {attention.expiring === 1 ? "יפוג בקרוב" : "יפוגו בקרוב"}
-            </span>
-          ) : null}
-          {attention.needsReview > 0 ? (
-            <span>
-              <span className="font-semibold tabular-nums text-stone-700">
-                {attention.needsReview}
-              </span>{" "}
-              לבדיקה
-            </span>
-          ) : null}
-        </p>
-      )}
+    <section
+      aria-label="מצב מסמכים"
+      className="flex aspect-square w-full flex-col rounded-[40px] border border-[#FEF6F2]/10 bg-[#210900] p-3 shadow-[inset_0_1px_0_rgba(254,246,242,0.08)]"
+    >
+      <header className="mb-2.5 flex items-start justify-between gap-3">
+        <div className="ps-3">
+          <h2 className="text-[24px] font-semibold leading-7 tracking-tight text-[#FEF6F2]">
+            מסמכים
+          </h2>
+          <p className="mt-0.5 text-[13px] font-medium text-[#FF5900]">
+            {needing === 0
+              ? "הכל בתוקף"
+              : needing === 1
+                ? "מסמך אחד דורש טיפול"
+                : `${needing} דורשים טיפול`}
+          </p>
+        </div>
+        <ProgressRing value={healthy} max={Math.max(activeCount, 1)} />
+      </header>
+
+      <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-1">
+        <MetricTile
+          icon={OctagonX}
+          label="פגי תוקף"
+          value={attention.expired}
+          lit={attention.expired > 0}
+        />
+        <MetricTile
+          icon={ClockFading}
+          label="לקראת פג תוקף"
+          value={attention.expiring}
+          lit={attention.expiring > 0}
+        />
+        <MetricTile
+          icon={SquareDashedMousePointer}
+          label="נדרש בדיקה"
+          value={attention.needsReview}
+          lit={attention.needsReview > 0}
+        />
+        <MetricTile
+          icon={Users}
+          label="כמות משתמשים"
+          value={userCount}
+          lit={false}
+          accent="orange"
+        />
+      </div>
     </section>
+  );
+}
+
+function MetricTile({
+  icon: Icon,
+  label,
+  value,
+  lit,
+  accent,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: number;
+  lit: boolean;
+  accent?: "orange";
+}) {
+  const orange = accent === "orange";
+
+  return (
+    <div
+      className={cn(
+        "relative flex h-full min-h-0 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-[28px] px-3 py-4 text-center",
+        lit
+          ? "bg-[#FEF6F2]/25 text-[#FEF6F2]"
+          : orange
+            ? "border border-[#FF5900]/45 bg-[#FF5900]/12 text-[#FF5900] shadow-[0_0_28px_rgba(255,89,0,0.4)]"
+            : "border border-[#FEF6F2]/12 bg-[#FEF6F2]/[0.07] text-[#FEF6F2] shadow-[inset_0_1px_0_rgba(254,246,242,0.12)]",
+      )}
+    >
+      <Icon
+        className={cn(
+          "size-[23px]",
+          orange ? "text-[#FF5900]" : "text-[#FEF6F2]",
+        )}
+        strokeWidth={2}
+        aria-hidden
+      />
+      <p
+        className={cn(
+          "text-[36px] font-semibold leading-none tracking-tight tabular-nums",
+          orange && "drop-shadow-[0_0_14px_rgba(255,89,0,0.95)]",
+        )}
+      >
+        {value}
+      </p>
+      <p
+        className={cn(
+          "text-[14px] font-medium leading-5",
+            lit
+              ? "text-[#FEF6F2]"
+              : orange
+              ? "text-[#FF5900] drop-shadow-[0_0_8px_rgba(255,89,0,0.8)]"
+              : "text-[#FEF6F2]/70",
+        )}
+      >
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function ProgressRing({ value, max }: { value: number; max: number }) {
+  const size = 52;
+  const stroke = 3.5;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.min(1, Math.max(0, value / max));
+  const offset = circumference * (1 - progress);
+
+  return (
+    <div className="relative size-[52px] shrink-0" aria-hidden>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="rgba(254,246,242,0.16)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#FF5900"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="drop-shadow-[0_0_6px_rgba(255,89,0,0.7)]"
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums text-[#FEF6F2]">
+        {value}/{max}
+      </span>
+    </div>
   );
 }
