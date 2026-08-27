@@ -26,31 +26,28 @@ export function PageTransition({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden">
-      <AnimatePresence mode="sync" initial={false} custom={direction}>
-        <motion.div
-          key={pathname}
-          custom={direction}
-          variants={{
-            enter: (dir: number) => ({
-              x: `${dir * -28}%`,
-              opacity: 0.72,
-            }),
-            center: { x: 0, opacity: 1 },
-            leave: (dir: number) => ({
-              x: `${dir * 18}%`,
-              opacity: 0.4,
-            }),
-          }}
-          initial="enter"
-          animate="center"
-          exit="leave"
-          transition={{ duration: DURATION, ease: EASE }}
-          className="absolute inset-0 overflow-y-auto overscroll-y-contain"
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
-    </div>
+    <AnimatePresence mode="wait" initial={false} custom={direction}>
+      <motion.div
+        key={pathname}
+        custom={direction}
+        variants={{
+          enter: (dir: number) => ({
+            x: `${dir * -28}%`,
+            opacity: 0.72,
+          }),
+          center: { x: 0, opacity: 1 },
+          leave: (dir: number) => ({
+            x: `${dir * 18}%`,
+            opacity: 0.4,
+          }),
+        }}
+        initial="enter"
+        animate="center"
+        exit="leave"
+        transition={{ duration: DURATION, ease: EASE }}
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   );
 }

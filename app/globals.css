@@ -37,10 +37,13 @@
 }
 
 html {
+  height: 100%;
   background: var(--surface-muted);
 }
 
 body {
+  height: 100%;
+  overflow: hidden;
   background: var(--surface-muted);
   color: var(--ink);
   font-family: var(--font-sans);
