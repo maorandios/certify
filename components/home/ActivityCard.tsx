@@ -75,14 +75,13 @@ export function ActivityCard({
   return (
     <li className="flex gap-3">
       <div className="flex w-4 shrink-0 flex-col items-center" aria-hidden>
-        <span className="flex h-5 w-4 items-center justify-center">
-          <TypeIcon
-            className={cn(
-              "size-4 text-[#2B2B2B]",
-              item.type === "processing" &&
-                "animate-[spin_2.5s_linear_infinite_reverse]",
-            )}
-          />
+        <span
+          className={cn(
+            "flex h-5 w-4 items-center justify-center",
+            item.type === "processing" && "animate-cycle",
+          )}
+        >
+          <TypeIcon className="size-4 text-[#2B2B2B]" />
         </span>
         {isLast ? null : (
           <span className="my-1.5 w-px flex-1 bg-stone-200" />
