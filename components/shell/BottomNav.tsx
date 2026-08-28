@@ -2,20 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, FilePlus2, Users } from "lucide-react";
+import { Flame, UserStar } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { copy } from "@/lib/copy";
-import { unresolvedActivityCount } from "@/lib/activity";
 import { useAppStore } from "@/lib/store";
+import { LogoMark } from "./AppBrand";
 
 export function BottomNav() {
   const pathname = usePathname();
   const openComposer = useAppStore((state) => state.openComposer);
-  const unresolved = useAppStore((state) =>
-    unresolvedActivityCount(state.activity),
-  );
-  const activityActive = pathname === "/";
-  const employeesActive = pathname.startsWith("/employees");
+  const feedActive = pathname === "/";
+  const usersActive = pathname.startsWith("/employees");
 
   return (
     <nav
@@ -25,40 +22,33 @@ export function BottomNav() {
       <div className="mx-auto grid h-[4.25rem] max-w-lg grid-cols-3">
         <Link
           href="/"
-          aria-current={activityActive ? "page" : undefined}
-          className={cn(
-            "relative flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
-            activityActive ? "text-[#FF5900]" : "text-stone-500",
-          )}
+          aria-current={feedActive ? "page" : undefined}
+          className="flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-[#2B2B2B]"
         >
-          <Activity className="size-5" aria-hidden />
-          <span>{copy.appTitle}</span>
-          {unresolved > 0 ? (
-            <span className="absolute top-1.5 end-1/2 me-[-18px] flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF5900] px-1 text-[9px] font-semibold text-white">
-              {unresolved}
-            </span>
-          ) : null}
+          <Flame
+            className={cn("size-5", feedActive && "fill-current")}
+            aria-hidden
+          />
+          <span>{copy.navFeed}</span>
         </Link>
         <button
           type="button"
           onClick={openComposer}
-          className="flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-[#FF5900]"
+          className="flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-[#2B2B2B]"
         >
-          <span className="flex size-8 items-center justify-center rounded-xl bg-[#FF5900] text-white">
-            <FilePlus2 className="size-4" aria-hidden />
-          </span>
-          <span>{copy.upload}</span>
+          <LogoMark />
+          <span>{copy.navCreate}</span>
         </button>
         <Link
           href="/employees"
-          aria-current={employeesActive ? "page" : undefined}
-          className={cn(
-            "flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
-            employeesActive ? "text-[#FF5900]" : "text-stone-500",
-          )}
+          aria-current={usersActive ? "page" : undefined}
+          className="flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-[#2B2B2B]"
         >
-          <Users className="size-5" aria-hidden />
-          <span>{copy.employeesTitle}</span>
+          <UserStar
+            className={cn("size-5", usersActive && "fill-current")}
+            aria-hidden
+          />
+          <span>{copy.navUsers}</span>
         </Link>
       </div>
     </nav>
