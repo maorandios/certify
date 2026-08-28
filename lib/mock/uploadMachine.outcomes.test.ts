@@ -35,14 +35,14 @@ describe("simulated upload outcomes", () => {
   it("employee_not_found parks the job and asks to create an employee", () => {
     const result = run("employee_not_found");
     expect(result.job.stage).toBe("action_required");
-    expect(result.activity[0].action?.kind).toBe("create_employee");
+    expect(result.activity[0].actionKind).toBe("create_employee");
     expect(result.activity[0].jobId).toBe("job-test");
   });
 
   it("ambiguous_employee offers candidate employees", () => {
     const result = run("ambiguous_employee");
     expect(result.job.stage).toBe("action_required");
-    expect(result.activity[0].action?.kind).toBe("select_employee");
+    expect(result.activity[0].actionKind).toBe("select_employee");
     expect(result.activity[0].candidateEmployeeIds?.length).toBeGreaterThan(1);
   });
 
@@ -52,13 +52,13 @@ describe("simulated upload outcomes", () => {
     expect(result.documents.length).toBe(seed.documents.length + 1);
     const pending = result.documents.find((doc) => doc.id === "doc-job-test");
     expect(pending?.lifecycle).toBe("needs_review");
-    expect(result.activity[0].action?.kind).toBe("confirm_field");
+    expect(result.activity[0].actionKind).toBe("confirm_field");
   });
 
   it("unreadable_file fails the job with a replace_file action", () => {
     const result = run("unreadable_file");
     expect(result.job.stage).toBe("failed");
-    expect(result.activity[0].action?.kind).toBe("replace_file");
+    expect(result.activity[0].actionKind).toBe("replace_file");
   });
 
   it("exact_duplicate saves nothing and posts an informational update", () => {
@@ -72,7 +72,7 @@ describe("simulated upload outcomes", () => {
   it("possible_duplicate keeps a pending document and asks for a decision", () => {
     const result = run("possible_duplicate");
     expect(result.job.stage).toBe("action_required");
-    expect(result.activity[0].action?.kind).toBe("confirm_replacement");
+    expect(result.activity[0].actionKind).toBe("confirm_replacement");
     expect(result.activity[0].pendingDocumentId).toBe("doc-job-test");
   });
 
@@ -88,7 +88,7 @@ describe("simulated upload outcomes", () => {
   it("uncertain_replacement waits for a replace-or-keep decision", () => {
     const result = run("uncertain_replacement");
     expect(result.job.stage).toBe("action_required");
-    expect(result.activity[0].action?.kind).toBe("confirm_replacement");
+    expect(result.activity[0].actionKind).toBe("confirm_replacement");
     expect(result.activity[0].documentId).toBe("doc-mohammad-height");
   });
 });

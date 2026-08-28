@@ -59,27 +59,39 @@ export type DocumentRecord = {
 
 export type ActivityType = "action" | "alert" | "update" | "processing";
 
+export type ActivityOpenBehavior =
+  | "action_sheet"
+  | "document_viewer"
+  | "employee_details"
+  | "jobs_sheet"
+  | "result_list"
+  | "none";
+
 export type ActivityActionKind =
   | "select_employee"
   | "create_employee"
   | "confirm_field"
   | "replace_file"
-  | "confirm_replacement"
-  | "renew_document"
-  | "view_result";
+  | "confirm_replacement";
 
 export type ActivityItem = {
   id: string;
   type: ActivityType;
   titleHe: string;
+  timestamp: string;
+  openBehavior: ActivityOpenBehavior;
+  metadataHe?: string;
   employeeId?: string;
   relatedEmployeeIds?: string[];
   documentId?: string;
+  relatedDocumentIds?: string[];
   jobId?: string;
   requestId?: string;
-  timestamp: string;
-  metadataHe?: string;
-  /** Extracted evidence shown inside the action sheet. */
+  /** Decision kind when `openBehavior` is `action_sheet`. */
+  actionKind?: ActivityActionKind;
+  /** Compact feed quick-action label, when one is shown. */
+  actionLabelHe?: string;
+  /** Extracted evidence shown inside a decision sheet. */
   evidenceHe?: string;
   /** Candidate employees for select_employee decisions. */
   candidateEmployeeIds?: string[];
@@ -88,10 +100,7 @@ export type ActivityItem = {
   /** Newly stored document waiting on a replacement decision. */
   pendingDocumentId?: string;
   resolved?: boolean;
-  action?: {
-    labelHe: string;
-    kind: ActivityActionKind;
-  };
+  resolvedAt?: string;
 };
 
 export type UploadStage =

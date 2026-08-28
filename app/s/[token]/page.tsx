@@ -226,7 +226,7 @@ function CenteredNote({
 
 export default function PublicSharePage() {
   return (
-    <div className="min-h-svh bg-[#FEF6F2]">
+    <div className="min-h-svh bg-[#FFFDFB]">
       <PublicHydrator>
         <SharePreview />
       </PublicHydrator>

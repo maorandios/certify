@@ -1,4 +1,5 @@
 import type {
+  ActivityItem,
   ActivityType,
   DocumentLifecycle,
   DocumentTypeId,
@@ -114,6 +115,11 @@ export const copy = {
   uploadNew: "העלה אישור חדש",
   openProcessing: "פתח עיבוד",
   processingSupport: "קוראים ומחלצים את פרטי המסמכים",
+  resultListTitle: "תוצאות",
+  resultListEmpty: "אין פריטים להצגה",
+  decisionReplacementTitle: "החלטה על המסמך",
+  confirmExpiryTitle: "אישור תאריך תוקף",
+  evidenceCropLabel: "קטע מהמסמך",
   assignedToast: (title: string, name: string) => `שייכנו ${title} ל${name}`,
   replacedToast: (name: string) => `אישור חדש החליף את האישור הקודם של ${name}`,
   replacedFeedTitle: "אישור חדש החליף את האישור הקודם",
@@ -179,6 +185,7 @@ export const copy = {
   viewerReadOnly: "מסמך היסטורי · לצפייה בלבד",
   viewerShowPrevious: "הצג מסמך קודם",
   viewerCompleteDetails: "השלם פרטים",
+  viewerPrepareRenew: "הכן בקשת חידוש",
   viewerClose: "סגור",
   viewerStatusLabel: "סטטוס",
   viewerExpiryInterpretation: "פרשנות תוקף",
@@ -186,7 +193,23 @@ export const copy = {
   // Activity action sheet
   sheetRelatedEmployee: "עובד מקושר",
   sheetRelatedDocument: "מסמך מקושר",
+  sheetDocumentSection: "מסמך",
+  sheetInsightsSection: "תובנות",
   sheetEvidence: "מה זיהינו במסמך",
+  sheetInsightUncertainExpiry:
+    "תאריך התפוגה לא נקרא בוודאות, ולכן עדיין אי אפשר לעקוב אחרי תוקף המסמך. אשרו את התאריך כדי להשלים את הקליטה.",
+  sheetInsightUncertainField:
+    "פרט שחולץ מהמסמך דורש אישור ידני. בדקו את הערך והשלימו אותו כדי שהמסמך יישמר כפעיל.",
+  sheetInsightSelectEmployee:
+    "זוהו כמה עובדים שעשויים להתאים למסמך. בחרו למי לשייך אותו כדי להשלים את הקליטה.",
+  sheetInsightCreateEmployee:
+    "הפרטים שזוהו במסמך אינם תואמים עובד קיים. צרו עובד חדש כדי לשייך אליו את המסמך.",
+  sheetInsightUnreadable:
+    "הקובץ אינו קריא מספיק לקליטה. העלו צילום חד וברור יותר כדי שנוכל לזהות את הפרטים.",
+  sheetInsightReplacement:
+    "המסמך החדש עשוי להחליף מסמך קיים בתיק. החליטו אם להחליף את הקודם או להשאיר את שניהם פעילים.",
+  sheetInsightRenew:
+    "המסמך פג תוקף או עומד לפוג. אפשר לשלוח לעובד בקשת חידוש או להעלות מסמך מעודכן.",
   sheetResolvedToast: "הטיפול הושלם",
   selectEmployeeTitle: "למי לשייך את המסמך?",
   selectEmployeeHint: "אלה העובדים שהכי מתאימים למה שזיהינו",
@@ -196,8 +219,8 @@ export const copy = {
   confirmFieldConfirm: "אישור הערך",
   confirmFieldFix: "שמירת תיקון",
   replaceFileAction: "העלאת קובץ חדש",
-  keepBothAction: "השאר את שניהם",
-  replacePreviousAction: "החלף את הקודם",
+  keepBothAction: "שמור את שני האישורים כפעילים",
+  replacePreviousAction: "האישור החדש מחליף את הקודם",
   discardDuplicateAction: "זה כפילות, אל תשמור",
   keepSeparateAction: "שמור כמסמך נפרד",
   remindLaterAction: "הזכר לי מאוחר יותר",
@@ -273,3 +296,23 @@ export const copy = {
   demoResumeJobs: "המשך עיבוד",
   demoCompleteJobs: "השלם את כל העיבודים",
 };
+
+/** Short decision explanation — not a raw document transcription. */
+export function sheetInsightHe(item: ActivityItem): string | undefined {
+  switch (item.actionKind) {
+    case "confirm_field":
+      return item.fieldKey === "expiresOn"
+        ? copy.sheetInsightUncertainExpiry
+        : copy.sheetInsightUncertainField;
+    case "select_employee":
+      return copy.sheetInsightSelectEmployee;
+    case "create_employee":
+      return copy.sheetInsightCreateEmployee;
+    case "replace_file":
+      return copy.sheetInsightUnreadable;
+    case "confirm_replacement":
+      return copy.sheetInsightReplacement;
+    default:
+      return undefined;
+  }
+}

@@ -4,6 +4,7 @@ import { fileSizeLabel, isoDaysFrom } from "./dates";
 import { copy, documentTypeLabels } from "./copy";
 import { buildRenewMessageHe, makeToken, publicRequestUrl } from "./links";
 import { createSeed } from "./mock/seed";
+import { stampActivity } from "./activityOpen";
 import {
   applyTargetedAssignment,
   applyUploadOutcome,
@@ -40,6 +41,7 @@ type UiState = {
   composerOpen: boolean;
   composerContext: ComposerContext;
   jobsSheetOpen: boolean;
+  focusedJobId: string | null;
   hydrated: boolean;
 };
 
@@ -72,7 +74,7 @@ type AppState = {
   hydrate: () => void;
   openComposer: (context?: ComposerContext) => void;
   closeComposer: () => void;
-  openJobsSheet: () => void;
+  openJobsSheet: (jobId?: string) => void;
   closeJobsSheet: () => void;
   consumeToast: () => void;
 
@@ -88,6 +90,7 @@ type AppState = {
     input: EmployeeInput,
   ) => Employee;
   confirmActivityField: (activityId: string, value: string) => void;
+  confirmDocumentField: (documentId: string, value: string) => void;
   decideReplacement: (
     activityId: string,
     decision: "replace" | "keep_both" | "discard",
@@ -134,9 +137,16 @@ function newId(prefix: string): string {
     : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function resolveItem(activity: ActivityItem[], activityId: string) {
+function resolveItem(
+  activity: ActivityItem[],
+  activityId: string,
+  at = new Date(),
+) {
+  const resolvedAt = at.toISOString();
   return activity.map((item) =>
-    item.id === activityId ? { ...item, resolved: true } : item,
+    item.id === activityId
+      ? { ...item, resolved: true, resolvedAt }
+      : item,
   );
 }
 
@@ -159,6 +169,8 @@ const OUTCOME_FOR_ACTION: Partial<
   confirm_replacement: "uncertain_replacement",
 };
 
+export const APP_STORE_VERSION = 10;
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -166,7 +178,7 @@ export const useAppStore = create<AppState>()(
       employees: seed.employees,
       documents: seed.documents,
       activity: seed.activity,
-      jobs: [],
+      jobs: seed.jobs,
       shares: [],
       requests: [],
       nextOutcome: "certain_match",
@@ -177,6 +189,7 @@ export const useAppStore = create<AppState>()(
         composerOpen: false,
         composerContext: null,
         jobsSheetOpen: false,
+        focusedJobId: null,
         hydrated: false,
       },
 
@@ -192,10 +205,18 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           ui: { ...state.ui, composerOpen: false, composerContext: null },
         })),
-      openJobsSheet: () =>
-        set((state) => ({ ui: { ...state.ui, jobsSheetOpen: true } })),
+      openJobsSheet: (jobId) =>
+        set((state) => ({
+          ui: {
+            ...state.ui,
+            jobsSheetOpen: true,
+            focusedJobId: jobId ?? null,
+          },
+        })),
       closeJobsSheet: () =>
-        set((state) => ({ ui: { ...state.ui, jobsSheetOpen: false } })),
+        set((state) => ({
+          ui: { ...state.ui, jobsSheetOpen: false, focusedJobId: null },
+        })),
       consumeToast: () => set({ lastToast: null }),
 
       enqueueUpload: (file) => {
@@ -407,7 +428,7 @@ export const useAppStore = create<AppState>()(
           createdAt: now.toISOString(),
         };
 
-        const update: ActivityItem = {
+        const update = stampActivity({
           id: newId("act"),
           type: "update",
           titleHe: copy.assignedFeedTitle(document.title),
@@ -416,7 +437,8 @@ export const useAppStore = create<AppState>()(
           jobId: job?.id,
           timestamp: now.toISOString(),
           metadataHe: document.title,
-        };
+          openBehavior: "document_viewer",
+        });
 
         set((current) => ({
           documents: [...current.documents, document],
@@ -464,7 +486,7 @@ export const useAppStore = create<AppState>()(
           const target = documents.find(
             (document) => document.id === item.documentId,
           );
-          const update: ActivityItem = {
+          const update = stampActivity({
             id: newId("act"),
             type: "update",
             titleHe: "הפרט אושר והמסמך סומן כפעיל",
@@ -472,11 +494,59 @@ export const useAppStore = create<AppState>()(
             documentId: item.documentId,
             timestamp: now.toISOString(),
             metadataHe: target ? documentTypeLabels[target.typeId] : undefined,
-          };
+            openBehavior: "document_viewer",
+          });
           return {
             documents,
             activity: [update, ...resolveItem(current.activity, activityId)],
             jobs: completeJob(current.jobs, item.jobId, now),
+            lastToast: copy.sheetResolvedToast,
+          };
+        });
+      },
+
+      confirmDocumentField: (documentId, value) => {
+        const state = get();
+        const pending = state.activity.find(
+          (entry) =>
+            !entry.resolved &&
+            entry.documentId === documentId &&
+            entry.actionKind === "confirm_field",
+        );
+        if (pending) {
+          get().confirmActivityField(pending.id, value);
+          return;
+        }
+
+        const now = new Date();
+        const document = state.documents.find((entry) => entry.id === documentId);
+        if (!document) return;
+
+        set((current) => {
+          const documents = current.documents.map((entry) =>
+            entry.id === documentId
+              ? {
+                  ...entry,
+                  expiresOn: value,
+                  lifecycle: "active" as const,
+                  processingStatus: "ready" as const,
+                  uncertainFieldKeys: undefined,
+                }
+              : entry,
+          );
+          const update = stampActivity({
+            id: newId("act"),
+            type: "update",
+            titleHe: "הפרט אושר והמסמך סומן כפעיל",
+            employeeId: document.employeeId,
+            documentId,
+            timestamp: now.toISOString(),
+            metadataHe: documentTypeLabels[document.typeId],
+            openBehavior: "document_viewer",
+          });
+          return {
+            documents,
+            activity: [update, ...current.activity],
             lastToast: copy.sheetResolvedToast,
           };
         });
@@ -526,7 +596,7 @@ export const useAppStore = create<AppState>()(
             titleHe = "המסמך הכפול לא נשמר";
           }
 
-          const update: ActivityItem = {
+          const update = stampActivity({
             id: newId("act"),
             type: "update",
             titleHe,
@@ -535,7 +605,8 @@ export const useAppStore = create<AppState>()(
               decision === "discard" ? item.documentId : item.pendingDocumentId,
             timestamp: now.toISOString(),
             metadataHe: item.metadataHe,
-          };
+            openBehavior: "document_viewer",
+          });
 
           return {
             documents,
@@ -623,7 +694,7 @@ export const useAppStore = create<AppState>()(
         const employee = state.employees.find(
           (entry) => entry.id === request?.employeeId,
         );
-        const update: ActivityItem = {
+        const update = stampActivity({
           id: newId("act"),
           type: "update",
           titleHe: copy.requestSentFeedTitle(employee?.fullName ?? "העובד"),
@@ -633,7 +704,8 @@ export const useAppStore = create<AppState>()(
           metadataHe: request?.documentType
             ? documentTypeLabels[request.documentType]
             : undefined,
-        };
+          openBehavior: request?.employeeId ? "employee_details" : "none",
+        });
         set((current) => ({
           activity: [
             update,
@@ -721,7 +793,7 @@ export const useAppStore = create<AppState>()(
           employees: fresh.employees,
           documents: fresh.documents,
           activity: fresh.activity,
-          jobs: [],
+          jobs: fresh.jobs,
           shares: [],
           requests: [],
           nextOutcome: "certain_match",
@@ -761,7 +833,7 @@ export const useAppStore = create<AppState>()(
           warningDays: 30,
           createdAt: now.toISOString(),
         };
-        const alert: ActivityItem = {
+        const alert = stampActivity({
           id: newId("act"),
           type: "alert",
           titleHe:
@@ -771,8 +843,8 @@ export const useAppStore = create<AppState>()(
           employeeId: employee.id,
           documentId: document.id,
           timestamp: now.toISOString(),
-          action: { labelHe: "שליחת בקשת חידוש", kind: "renew_document" },
-        };
+          openBehavior: "document_viewer",
+        });
         set((current) => ({
           documents: [...current.documents, document],
           activity: [alert, ...current.activity],
@@ -782,27 +854,6 @@ export const useAppStore = create<AppState>()(
       triggerDemoAction: (kind) => {
         const now = new Date();
         const state = get();
-
-        if (kind === "renew_document") {
-          get().addDemoDocument("expired");
-          return;
-        }
-        if (kind === "view_result") {
-          const document = state.documents.find(
-            (entry) => entry.lifecycle === "active",
-          );
-          const item: ActivityItem = {
-            id: newId("act"),
-            type: "update",
-            titleHe: "מסמך נקלט ואפשר לצפות בתוצאה",
-            employeeId: document?.employeeId,
-            documentId: document?.id,
-            timestamp: now.toISOString(),
-            action: { labelHe: copy.viewResultAction, kind: "view_result" },
-          };
-          set((current) => ({ activity: [item, ...current.activity] }));
-          return;
-        }
 
         const outcome = OUTCOME_FOR_ACTION[kind];
         if (!outcome) return;
@@ -880,7 +931,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "certify-p0",
-      version: 9,
+      version: APP_STORE_VERSION,
       migrate: () => {
         const next = createSeed();
         return {
@@ -888,7 +939,7 @@ export const useAppStore = create<AppState>()(
           employees: next.employees,
           documents: next.documents,
           activity: next.activity,
-          jobs: [],
+          jobs: next.jobs,
           shares: [],
           requests: [],
           nextOutcome: "certain_match" as const,

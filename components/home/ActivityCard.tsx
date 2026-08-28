@@ -9,13 +9,17 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  activityHasChevron,
+  isActivityInteractive,
+  type ActivityOpenContext,
+} from "@/lib/activityOpen";
 import { activityTypeLabels } from "@/lib/copy";
 import { formatRelativeHe } from "@/lib/dates";
 import { useMounted } from "@/components/ui/use-mounted";
 import type {
   ActivityItem,
   ActivityType,
-  DocumentRecord,
   Employee,
 } from "@/lib/types";
 
@@ -52,7 +56,7 @@ function RelativeTime({ timestamp }: { timestamp: string }) {
 type ActivityCardProps = {
   item: ActivityItem;
   employees: Employee[];
-  documents: DocumentRecord[];
+  openContext: ActivityOpenContext;
   isLast?: boolean;
   onPostPress: (item: ActivityItem) => void;
 };
@@ -61,6 +65,7 @@ export function ActivityCard({
   item,
   employees,
   isLast = false,
+  openContext,
   onPostPress,
 }: ActivityCardProps) {
   const employee = employees.find((entry) => entry.id === item.employeeId);
@@ -68,6 +73,13 @@ export function ActivityCard({
     .map((id) => employees.find((entry) => entry.id === id))
     .filter((entry): entry is Employee => Boolean(entry));
   const TypeIcon = typeIcons[item.type];
+  const interactive = isActivityInteractive(item, openContext);
+  const showChevron = activityHasChevron(item, openContext);
+
+  function activate() {
+    if (!interactive) return;
+    onPostPress(item);
+  }
 
   return (
     <li className="flex gap-3">
@@ -84,13 +96,25 @@ export function ActivityCard({
           <span className="my-1.5 w-px flex-1 bg-stone-200" />
         )}
       </div>
-      <button
-        type="button"
+      <div
+        role={interactive ? "button" : undefined}
+        tabIndex={interactive ? 0 : undefined}
         className={cn(
           "flex min-w-0 flex-1 items-center gap-4 text-start",
           isLast ? "pb-1" : "pb-6",
+          interactive && "cursor-pointer",
         )}
-        onClick={() => onPostPress(item)}
+        onClick={interactive ? activate : undefined}
+        onKeyDown={
+          interactive
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  activate();
+                }
+              }
+            : undefined
+        }
       >
         <div className="min-w-0 flex-1">
           <header className="flex h-5 min-w-0 items-center gap-1.5">
@@ -128,11 +152,10 @@ export function ActivityCard({
             <p className={cn("mt-0.5", metaText)}>{item.metadataHe}</p>
           ) : null}
         </div>
-        <ArrowLeft
-          className="size-5 shrink-0 text-stone-500"
-          aria-hidden
-        />
-      </button>
+        {showChevron ? (
+          <ArrowLeft className="size-5 shrink-0 text-stone-500" aria-hidden />
+        ) : null}
+      </div>
     </li>
   );
 }

@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [hydrate]);
 
   return (
-    <div className="flex h-svh flex-col bg-[#FEF6F2]">
+    <div className="flex h-svh flex-col bg-[#FFFDFB]">
       <DesktopTopNav />
       <div className="relative min-h-0 flex-1">
         <TopBar />

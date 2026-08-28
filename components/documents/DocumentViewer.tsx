@@ -19,13 +19,18 @@ import {
   lifecycleLabels,
 } from "@/lib/copy";
 import { daysUntil, formatDotDate } from "@/lib/dates";
-import { documentNeedsReview, isHistoryDocument } from "@/lib/status";
+import { documentNeedsReview, isDocumentExpired, isDocumentExpiring, isHistoryDocument } from "@/lib/status";
 import { useAppStore } from "@/lib/store";
 import type { DocumentRecord } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
 import { useIsDesktop } from "@/components/ui/use-is-desktop";
+import {
+  ActivitySheetHeader,
+  activityForDocument,
+} from "@/components/home/ActivitySheetHeader";
+import { RenewRequestSheet } from "@/components/requests/RenewRequestSheet";
 
 function expiryInterpretation(document: DocumentRecord, now: Date): string {
   if (!document.expiresOn) return "למסמך אין תאריך תוקף מוגדר";
@@ -70,13 +75,14 @@ function ViewerBody({
   const activity = useAppStore((state) => state.activity);
   const seedAnchor = useAppStore((state) => state.seedAnchor);
   const openComposer = useAppStore((state) => state.openComposer);
-  const confirmActivityField = useAppStore(
-    (state) => state.confirmActivityField,
+  const confirmDocumentField = useAppStore(
+    (state) => state.confirmDocumentField,
   );
 
   // Allow drilling into the previous (superseded) version without closing.
   const [overrideId, setOverrideId] = useState<string | null>(null);
   const [fixValue, setFixValue] = useState("");
+  const [renewOpen, setRenewOpen] = useState(false);
 
   const doc = overrideId
     ? (documents.find((entry) => entry.id === overrideId) ?? documentProp)
@@ -102,7 +108,7 @@ function ViewerBody({
       (item) =>
         !item.resolved &&
         item.documentId === doc.id &&
-        item.action?.kind === "confirm_field",
+        item.actionKind === "confirm_field",
     );
   }, [doc, activity]);
 
@@ -330,11 +336,11 @@ function ViewerBody({
       </section>
 
       {/* Complete-details inline flow for documents pending review */}
-      {!readOnly && pendingFieldActivity && documentNeedsReview(doc) ? (
+      {!readOnly && documentNeedsReview(doc) ? (
         <section className="rounded-[20px] bg-[var(--color-brand-soft,#FFEDE0)] p-4">
           <h3 className="text-sm font-semibold">{copy.viewerCompleteDetails}</h3>
           <p className="mt-1 text-[13px] leading-5 text-stone-600">
-            {pendingFieldActivity.evidenceHe}
+            {pendingFieldActivity?.evidenceHe ?? copy.viewerUncertainHint}
           </p>
           <div className="mt-3 flex gap-2">
             <input
@@ -346,7 +352,7 @@ function ViewerBody({
             <Button
               disabled={!fixValue}
               onClick={() => {
-                confirmActivityField(pendingFieldActivity.id, fixValue);
+                confirmDocumentField(doc.id, fixValue);
                 onClose();
               }}
             >
@@ -358,6 +364,18 @@ function ViewerBody({
 
       {/* Minimal actions */}
       <div className="flex flex-wrap gap-2">
+        {!readOnly &&
+        employee &&
+        (isDocumentExpired(doc, now) || isDocumentExpiring(doc, now)) ? (
+          <Button
+            variant="secondary"
+            className="flex-1"
+            onClick={() => setRenewOpen(true)}
+          >
+            <CalendarClock className="size-4" aria-hidden />
+            {copy.viewerPrepareRenew}
+          </Button>
+        ) : null}
         {!readOnly && doc.lifecycle === "active" && employee && onShare ? (
           <Button
             variant="secondary"
@@ -410,34 +428,50 @@ function ViewerBody({
   );
 
   const title = `${documentTypeLabels[doc.typeId]}${employee ? ` · ${employee.fullName}` : ""}`;
+  const feedActivity = activityForDocument(activity, doc.id);
+  const header = feedActivity ? (
+    <ActivitySheetHeader item={feedActivity} employee={employee} />
+  ) : undefined;
 
-  if (isDesktop) {
-    return (
-      <Dialog
-        open
-        onOpenChange={(next) => {
-          if (!next) onClose();
-        }}
-        title={title}
-        className="max-h-[86vh] max-w-2xl overflow-y-auto"
-      >
-        {body}
-      </Dialog>
-    );
-  }
-
-  return (
+  const shell = isDesktop ? (
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={title}
+      header={header}
+      className="max-h-[86vh] max-w-2xl overflow-y-auto bg-[#FFFDFB]"
+    >
+      {body}
+    </Dialog>
+  ) : (
     <Drawer
       open
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
       title={title}
-      className="top-[max(0.75rem,env(safe-area-inset-top))] h-auto"
+      header={header}
+      className="top-[max(0.75rem,env(safe-area-inset-top))] h-auto bg-[#FFFDFB]"
       contentClassName="h-[calc(100%-4.5rem)] max-h-none"
     >
       {body}
     </Drawer>
+  );
+
+  return (
+    <>
+      {shell}
+      {employee ? (
+        <RenewRequestSheet
+          open={renewOpen}
+          onClose={() => setRenewOpen(false)}
+          employeeId={employee.id}
+          documentId={doc.id}
+        />
+      ) : null}
+    </>
   );
 }
 

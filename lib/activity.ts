@@ -99,6 +99,7 @@ export function buildProcessingActivity(jobs: UploadJob[]): ActivityItem | null 
         ? uploadStageLabels[active[0].stage]
         : copy.processingSupport,
     jobId: active[0].id,
+    openBehavior: "jobs_sheet",
   };
 }
 

@@ -1,4 +1,4 @@
-import type { ActivityItem, DocumentRecord, Employee } from "../types";
+import type { ActivityItem, DocumentRecord, Employee, UploadJob } from "../types";
 import { formatDotDate, isoDaysFrom } from "../dates";
 
 function hoursAgo(hours: number, now: Date): string {
@@ -15,6 +15,7 @@ export function createSeed(now = new Date()): {
   employees: Employee[];
   documents: DocumentRecord[];
   activity: ActivityItem[];
+  jobs: UploadJob[];
 } {
   const employees: Employee[] = [
     {
@@ -459,6 +460,33 @@ export function createSeed(now = new Date()): {
     },
   ];
 
+  const jobs: UploadJob[] = [
+    {
+      id: "job-karim-seed",
+      stage: "action_required",
+      outcome: "employee_not_found",
+      fileMeta: {
+        name: "safety-karim.jpg",
+        mime: "image/jpeg",
+        sizeLabel: "1.3 MB",
+        previewKind: "image",
+        pages: 1,
+      },
+      extracted: {
+        fullName: "כרים עבאס",
+        identityNumber: "512778401",
+        typeId: "safety",
+        title: "הדרכת בטיחות",
+        issuedOn: isoDaysFrom(now, 0),
+        expiresOn: isoDaysFrom(now, 365),
+        issuer: "קצין הבטיחות באתר",
+        credentialNumber: "SF-KARIM",
+      },
+      createdAt: hoursAgo(0.9, now),
+      updatedAt: hoursAgo(0.9, now),
+    },
+  ];
+
   const activity: ActivityItem[] = [
     {
       id: "act-fatima-date",
@@ -470,7 +498,32 @@ export function createSeed(now = new Date()): {
       metadataHe: "הדרכת בטיחות",
       fieldKey: "expiresOn",
       evidenceHe: "בתוקף עד: ‎03/____‎ (הספרות האחרונות מטושטשות בצילום)",
-      action: { labelHe: "בדיקת התאריך", kind: "confirm_field" },
+      actionKind: "confirm_field",
+      actionLabelHe: "השלם תאריך",
+      openBehavior: "action_sheet",
+    },
+    {
+      id: "act-select-levi",
+      type: "action",
+      titleHe: "מצאנו כמה עובדים שמתאימים למסמך — צריך לבחור למי לשייך",
+      timestamp: hoursAgo(0.7, now),
+      metadataHe: "אישור ציוד",
+      evidenceHe: "שם על המסמך: י. לוי · מספר מזהה חלקי",
+      candidateEmployeeIds: ["emp-yosef", "emp-avigail"],
+      actionKind: "select_employee",
+      actionLabelHe: "בחר עובד",
+      openBehavior: "action_sheet",
+    },
+    {
+      id: "act-create-karim",
+      type: "action",
+      titleHe: "זיהינו מסמך של כרים עבאס אבל אין עובד כזה בתיק",
+      jobId: "job-karim-seed",
+      timestamp: hoursAgo(0.9, now),
+      metadataHe: "הדרכת בטיחות",
+      evidenceHe: "שם: כרים עבאס · מספר מזהה: 512778401",
+      actionKind: "create_employee",
+      openBehavior: "action_sheet",
     },
     {
       id: "act-daniel-expired",
@@ -480,7 +533,7 @@ export function createSeed(now = new Date()): {
       documentId: "doc-daniel-license",
       timestamp: hoursAgo(6, now),
       metadataHe: `רישיון מקצועי · פג ב־${formatDotDate(isoDaysFrom(now, -1))}`,
-      action: { labelHe: "שליחת בקשת חידוש", kind: "renew_document" },
+      openBehavior: "document_viewer",
     },
     {
       id: "act-john-expired",
@@ -490,7 +543,7 @@ export function createSeed(now = new Date()): {
       documentId: "doc-john-medical",
       timestamp: hoursAgo(8, now),
       metadataHe: `אישור רפואי · פג ב־${formatDotDate(isoDaysFrom(now, -12))}`,
-      action: { labelHe: "שליחת בקשת חידוש", kind: "renew_document" },
+      openBehavior: "document_viewer",
     },
     {
       id: "act-mohammad-expiring",
@@ -500,7 +553,7 @@ export function createSeed(now = new Date()): {
       documentId: "doc-mohammad-height",
       timestamp: hoursAgo(2, now),
       metadataHe: `אישור עבודה בגובה · בתוקף עד ${formatDotDate(isoDaysFrom(now, 14))}`,
-      action: { labelHe: "שליחת בקשת חידוש", kind: "renew_document" },
+      openBehavior: "document_viewer",
     },
     {
       id: "act-maria-expiring",
@@ -510,15 +563,21 @@ export function createSeed(now = new Date()): {
       documentId: "doc-maria-operator",
       timestamp: hoursAgo(4, now),
       metadataHe: `תעודת מפעיל · בתוקף עד ${formatDotDate(isoDaysFrom(now, 8))}`,
-      action: { labelHe: "שליחת בקשת חידוש", kind: "renew_document" },
+      openBehavior: "document_viewer",
     },
     {
       id: "act-batch",
       type: "update",
       titleHe: "שייכנו 3 מסמכים לעובדים",
       relatedEmployeeIds: ["emp-yosef", "emp-daniel", "emp-ahmad"],
+      relatedDocumentIds: [
+        "doc-yosef-safety",
+        "doc-daniel-license",
+        "doc-ahmad-safety",
+      ],
       timestamp: hoursAgo(9, now),
       metadataHe: "יוסף לוי, דניאל כהן ועוד עובד אחד",
+      openBehavior: "result_list",
     },
     {
       id: "act-avigail-replaced",
@@ -528,17 +587,19 @@ export function createSeed(now = new Date()): {
       documentId: "doc-avigail-new",
       timestamp: hoursAgo(18, now),
       metadataHe: `הסמכת ביצוע · בתוקף עד ${formatDotDate(isoDaysFrom(now, 345))}`,
+      openBehavior: "document_viewer",
     },
     {
       id: "act-cycle-link",
-      type: "processing",
+      type: "update",
       titleHe: "שולחים קישור לעובד לחידוש האישור הרפואי",
       employeeId: "emp-ahmad",
       timestamp: hoursAgo(0.4, now),
+      openBehavior: "none",
     },
     {
       id: "act-natan-long",
-      type: "action",
+      type: "update",
       titleHe:
         "לא הצלחנו לקרוא את תאריך התפוגה באישור העבודה בגובה ולכן נדרשת בדיקה ידנית של המסמך",
       employeeId: "emp-natan",
@@ -546,7 +607,7 @@ export function createSeed(now = new Date()): {
       timestamp: hoursAgo(1, now),
       fieldKey: "expiresOn",
       evidenceHe: "תוקף האישור: לא אותר בסריקה",
-      action: { labelHe: "בדיקת התאריך", kind: "confirm_field" },
+      openBehavior: "document_viewer",
     },
     {
       id: "act-salah-long",
@@ -555,7 +616,7 @@ export function createSeed(now = new Date()): {
         "סלאח התחיל לעבוד השבוע וטרם הועלו עבורו מסמכים או אישורי בטיחות למערכת",
       employeeId: "emp-salah",
       timestamp: hoursAgo(3, now),
-      action: { labelHe: "העלה מסמך", kind: "replace_file" },
+      openBehavior: "employee_details",
     },
     {
       id: "act-viktor-long",
@@ -564,6 +625,7 @@ export function createSeed(now = new Date()): {
         "קיבלנו אישור מעודכן אבל עדיין חסרים פרטים מזהים ולכן השארנו אותו להשלמה ידנית",
       employeeId: "emp-viktor",
       timestamp: hoursAgo(5, now),
+      openBehavior: "employee_details",
     },
     {
       id: "act-roi",
@@ -571,10 +633,11 @@ export function createSeed(now = new Date()): {
       titleHe: "עדיין לא הועלו מסמכים",
       employeeId: "emp-roi",
       timestamp: hoursAgo(20, now),
+      openBehavior: "none",
     },
   ];
 
-  return { generatedAt: now.toISOString(), employees, documents, activity };
+  return { generatedAt: now.toISOString(), employees, documents, activity, jobs };
 }
 
 export const HAPPY_PATH_EMPLOYEE_ID = "emp-yosef";

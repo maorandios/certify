@@ -264,7 +264,7 @@ function Note({
 
 export default function PublicRequestPage() {
   return (
-    <div className="min-h-svh bg-[#FEF6F2]">
+    <div className="min-h-svh bg-[#FFFDFB]">
       <PublicHydrator>
         <RequestUpload />
         {/* Keeps the simulated processing job ticking on the public page. */}

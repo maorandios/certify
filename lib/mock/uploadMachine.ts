@@ -1,5 +1,6 @@
 import { isoDaysFrom, toIsoDate, formatDotDate } from "../dates";
 import { copy, documentTypeLabels } from "../copy";
+import { stampActivity } from "../activityOpen";
 import { HAPPY_PATH_EMPLOYEE_ID, HAPPY_PATH_IDENTITY } from "./seed";
 import type {
   ActivityItem,
@@ -129,7 +130,7 @@ export function applyHappyPathAssignment(input: {
   documents.push(assignedDocument);
 
   const replaced = Boolean(previous);
-  const activityItem: ActivityItem = {
+  const activityItem = stampActivity({
     id: `act-${input.job.id}`,
     type: "update",
     titleHe: replaced
@@ -142,7 +143,8 @@ export function applyHappyPathAssignment(input: {
     metadataHe: assignedDocument.expiresOn
       ? `${extracted.title} · בתוקף עד ${formatDotDate(assignedDocument.expiresOn)}`
       : extracted.title,
-  };
+    openBehavior: "document_viewer",
+  });
 
   return {
     documents,
@@ -298,7 +300,7 @@ export function applyUploadOutcome(input: {
     }
 
     case "employee_not_found": {
-      const item: ActivityItem = {
+      const item = stampActivity({
         id: `act-${job.id}`,
         type: "action",
         titleHe: `זיהינו מסמך של ${extracted?.fullName} אבל אין עובד כזה בתיק`,
@@ -306,8 +308,10 @@ export function applyUploadOutcome(input: {
         timestamp: now.toISOString(),
         metadataHe: extracted?.title,
         evidenceHe: `שם: ${extracted?.fullName} · מספר מזהה: ${extracted?.identityNumber}`,
-        action: { labelHe: copy.createNewEmployeeAction, kind: "create_employee" },
-      };
+        actionKind: "create_employee",
+        actionLabelHe: copy.createNewEmployeeAction,
+        openBehavior: "action_sheet",
+      });
       return {
         documents,
         activity: [item],
@@ -321,7 +325,7 @@ export function applyUploadOutcome(input: {
         .filter((employee) => employee.fullName.includes("לוי"))
         .map((employee) => employee.id)
         .slice(0, 3);
-      const item: ActivityItem = {
+      const item = stampActivity({
         id: `act-${job.id}`,
         type: "action",
         titleHe: "מצאנו כמה עובדים שמתאימים למסמך — צריך לבחור למי לשייך",
@@ -330,8 +334,10 @@ export function applyUploadOutcome(input: {
         metadataHe: extracted?.title,
         evidenceHe: `שם על המסמך: ${extracted?.fullName} · מספר מזהה: ${extracted?.identityNumber}`,
         candidateEmployeeIds: candidates,
-        action: { labelHe: "בחירת עובד", kind: "select_employee" },
-      };
+        actionKind: "select_employee",
+        actionLabelHe: "בחר עובד",
+        openBehavior: "action_sheet",
+      });
       return {
         documents,
         activity: [item],
@@ -354,7 +360,7 @@ export function applyUploadOutcome(input: {
         lifecycle: "needs_review",
         now,
       });
-      const item: ActivityItem = {
+      const item = stampActivity({
         id: `act-${job.id}`,
         type: "action",
         titleHe: `שייכנו ${extracted.title} ל${employee.fullName} אבל תאריך התוקף לא ברור`,
@@ -365,8 +371,10 @@ export function applyUploadOutcome(input: {
         metadataHe: extracted.title,
         fieldKey: "expiresOn",
         evidenceHe: "בתוקף עד: לא אותר בסריקה",
-        action: { labelHe: "בדיקת התאריך", kind: "confirm_field" },
-      };
+        actionKind: "confirm_field",
+        actionLabelHe: "השלם תאריך",
+        openBehavior: "action_sheet",
+      });
       return {
         documents: [...documents, pending],
         activity: [item],
@@ -391,7 +399,7 @@ export function applyUploadOutcome(input: {
       const employee = employees.find(
         (candidate) => candidate.id === existing?.employeeId,
       );
-      const item: ActivityItem = {
+      const item = stampActivity({
         id: `act-${job.id}`,
         type: "update",
         titleHe: `המסמך שהועלה כבר קיים בתיק של ${employee?.fullName ?? "העובד"} ולא נשמר שוב`,
@@ -400,7 +408,8 @@ export function applyUploadOutcome(input: {
         jobId: job.id,
         timestamp: now.toISOString(),
         metadataHe: extracted?.title,
-      };
+        openBehavior: existing?.id ? "document_viewer" : "none",
+      });
       return {
         documents,
         activity: [item],
@@ -434,7 +443,7 @@ export function applyUploadOutcome(input: {
         lifecycle: "needs_review",
         now,
       });
-      const item: ActivityItem = {
+      const item = stampActivity({
         id: `act-${job.id}`,
         type: "action",
         titleHe: `המסמך החדש של ${employee.fullName} נראה דומה מאוד למסמך קיים — כפילות?`,
@@ -445,8 +454,9 @@ export function applyUploadOutcome(input: {
         timestamp: now.toISOString(),
         metadataHe: extracted.title,
         evidenceHe: `מספר תעודה במסמך החדש: ${extracted.credentialNumber} · במסמך הקיים: ${existing.credentialNumber}`,
-        action: { labelHe: "החלטה על כפילות", kind: "confirm_replacement" },
-      };
+        actionKind: "confirm_replacement",
+        openBehavior: "action_sheet",
+      });
       return {
         documents: [...documents, pending],
         activity: [item],
@@ -485,7 +495,7 @@ export function applyUploadOutcome(input: {
         now,
       });
       nextDocuments.push(fresh);
-      const item: ActivityItem = {
+      const item = stampActivity({
         id: `act-${job.id}`,
         type: "update",
         titleHe: copy.replacedFeedTitle,
@@ -496,7 +506,8 @@ export function applyUploadOutcome(input: {
         metadataHe: fresh.expiresOn
           ? `${extracted.title} · בתוקף עד ${formatDotDate(fresh.expiresOn)}`
           : extracted.title,
-      };
+        openBehavior: "document_viewer",
+      });
       return {
         documents: nextDocuments,
         activity: [item],
@@ -531,7 +542,7 @@ export function applyUploadOutcome(input: {
         lifecycle: "needs_review",
         now,
       });
-      const item: ActivityItem = {
+      const item = stampActivity({
         id: `act-${job.id}`,
         type: "action",
         titleHe: `התקבל ${extracted.title} חדש ל${employee.fullName} — האם הוא מחליף את הקודם?`,
@@ -542,8 +553,9 @@ export function applyUploadOutcome(input: {
         timestamp: now.toISOString(),
         metadataHe: extracted.title,
         evidenceHe: `המסמך החדש מגוף מנפיק אחר (${extracted.issuer}) ולא ברור אם הוא מחליף את הקיים`,
-        action: { labelHe: "החלטה על החלפה", kind: "confirm_replacement" },
-      };
+        actionKind: "confirm_replacement",
+        openBehavior: "action_sheet",
+      });
       return {
         documents: [...documents, pending],
         activity: [item],
@@ -563,15 +575,17 @@ function failUnreadable(
   job: UploadJob,
   now: Date,
 ): OutcomeResult {
-  const item: ActivityItem = {
+  const item = stampActivity({
     id: `act-${job.id}`,
     type: "action",
     titleHe: "לא הצלחנו לקרוא את הקובץ שהועלה — כדאי לצלם שוב באור טוב יותר",
     jobId: job.id,
     timestamp: now.toISOString(),
     metadataHe: job.fileMeta.name,
-    action: { labelHe: copy.replaceFileAction, kind: "replace_file" },
-  };
+    actionKind: "replace_file",
+    actionLabelHe: copy.replaceFileAction,
+    openBehavior: "action_sheet",
+  });
   return {
     documents,
     activity: [item],
@@ -636,7 +650,7 @@ export function applyTargetedAssignment(input: {
   });
   nextDocuments.push(fresh);
 
-  const item: ActivityItem = {
+  const item = stampActivity({
     id: `act-${input.job.id}`,
     type: "update",
     titleHe: replaced
@@ -649,7 +663,8 @@ export function applyTargetedAssignment(input: {
     metadataHe: fresh.expiresOn
       ? `${extracted.title} · בתוקף עד ${formatDotDate(fresh.expiresOn)}`
       : extracted.title,
-  };
+    openBehavior: "document_viewer",
+  });
 
   return {
     documents: nextDocuments,

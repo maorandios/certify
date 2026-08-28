@@ -34,7 +34,7 @@ export function PublicHydrator({ children }: { children: ReactNode }) {
 
   if (!hydrated) {
     return (
-      <div className="flex min-h-svh items-center justify-center bg-[#FEF6F2]">
+      <div className="flex min-h-svh items-center justify-center bg-[#FFFDFB]">
         <Loader2
           className="size-7 animate-spin text-[var(--color-brand,#FF5900)]"
           aria-label="טוען"

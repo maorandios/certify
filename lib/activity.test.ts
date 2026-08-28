@@ -51,6 +51,7 @@ describe("activity ordering", () => {
         type: "update",
         titleHe: "עדכון",
         timestamp: "2026-08-27T11:00:00.000Z",
+        openBehavior: "none",
       },
       {
         id: "expiring",
@@ -58,6 +59,7 @@ describe("activity ordering", () => {
         titleHe: "יפוג",
         documentId: "expiring-doc",
         timestamp: "2026-08-27T10:00:00.000Z",
+        openBehavior: "document_viewer",
       },
       {
         id: "expired",
@@ -65,12 +67,14 @@ describe("activity ordering", () => {
         titleHe: "פג",
         documentId: "expired-doc",
         timestamp: "2026-08-27T09:00:00.000Z",
+        openBehavior: "document_viewer",
       },
       {
         id: "action",
         type: "action",
         titleHe: "חסר תאריך",
         timestamp: "2026-08-27T08:00:00.000Z",
+        openBehavior: "none",
       },
     ];
 
@@ -85,9 +89,9 @@ describe("activity ordering", () => {
   it("counts unresolved action and alert items", () => {
     expect(
       unresolvedActivityCount([
-        { id: "1", type: "action", titleHe: "a", timestamp: now.toISOString() },
-        { id: "2", type: "alert", titleHe: "b", timestamp: now.toISOString() },
-        { id: "3", type: "update", titleHe: "c", timestamp: now.toISOString() },
+        { id: "1", type: "action", titleHe: "a", timestamp: now.toISOString(), openBehavior: "none" },
+        { id: "2", type: "alert", titleHe: "b", timestamp: now.toISOString(), openBehavior: "none" },
+        { id: "3", type: "update", titleHe: "c", timestamp: now.toISOString(), openBehavior: "none" },
       ]),
     ).toBe(2);
   });

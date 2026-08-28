@@ -21,6 +21,8 @@ type ResponsiveSheetProps = {
   overlayClassName?: string;
   /** Sticky header between the handle and the scrollable body. */
   header?: ReactNode;
+  /** Sticky actions below the scrollable body. */
+  footer?: ReactNode;
 };
 
 /** Bottom sheet on mobile, centered dialog on desktop. */
@@ -35,6 +37,7 @@ export function ResponsiveSheet({
   contentClassName,
   overlayClassName,
   header,
+  footer,
 }: ResponsiveSheetProps) {
   const isDesktop = useIsDesktop();
 
@@ -48,6 +51,7 @@ export function ResponsiveSheet({
         className={dialogClassName}
         overlayClassName={overlayClassName}
         header={header}
+        footer={footer}
       >
         {children}
       </Dialog>
@@ -64,6 +68,7 @@ export function ResponsiveSheet({
       contentClassName={contentClassName}
       overlayClassName={overlayClassName}
       header={header}
+      footer={footer}
     >
       {children}
     </Drawer>

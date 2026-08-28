@@ -22,7 +22,7 @@ export function BottomNav() {
       aria-label="ניווט ראשי"
       className="pointer-events-none absolute inset-x-0 bottom-0 z-40 overflow-visible lg:hidden"
     >
-      <div className="pointer-events-auto overflow-visible border-t border-[#2B2B2B]/5 bg-[#FEF6F2]/70 pb-[env(safe-area-inset-bottom)] backdrop-blur-[24px] backdrop-saturate-150 [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]">
+      <div className="pointer-events-auto overflow-visible border-t border-[#2B2B2B]/5 bg-[#FFFDFB]/70 pb-[env(safe-area-inset-bottom)] backdrop-blur-[24px] backdrop-saturate-150 [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]">
         <div className="mx-auto grid h-[4.25rem] max-w-lg grid-cols-3 overflow-visible">
         <Link
           href="/"

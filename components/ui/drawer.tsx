@@ -22,6 +22,8 @@ type DrawerProps = {
   overlayClassName?: string;
   /** Content between the drag handle and the scrollable body (e.g. a sticky header). */
   header?: ReactNode;
+  /** Sticky actions below the scrollable body. */
+  footer?: ReactNode;
 };
 
 export function Drawer({
@@ -34,6 +36,7 @@ export function Drawer({
   contentClassName,
   overlayClassName,
   header,
+  footer,
 }: DrawerProps) {
   const mounted = useMounted();
 
@@ -60,7 +63,7 @@ export function Drawer({
           exit={{ opacity: 0 }}
           transition={SHEET_TRANSITION}
           className={cn(
-            "fixed inset-0 z-[100] bg-stone-900/40",
+            "fixed inset-0 z-[100] bg-[#2B2B2B]/25 backdrop-blur-[24px] backdrop-saturate-150 [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]",
             overlayClassName,
           )}
           onClick={() => onOpenChange(false)}
@@ -77,12 +80,12 @@ export function Drawer({
           exit={{ y: "100%" }}
           transition={SHEET_TRANSITION}
           className={cn(
-            "fixed inset-x-0 bottom-0 z-[101] mx-auto flex w-full max-w-lg flex-col rounded-t-[24px] bg-white shadow-[0_-8px_32px_rgba(28,25,23,0.18)]",
+            "fixed inset-x-0 bottom-0 z-[101] mx-auto flex w-full max-w-lg flex-col rounded-t-[24px] bg-[#FFFDFB] shadow-[0_-8px_32px_rgba(28,25,23,0.18)]",
             className,
           )}
           style={{ willChange: "transform" }}
         >
-          <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-stone-200" />
+          <div className="mx-auto mt-1.5 h-1.5 w-12 shrink-0 rounded-full bg-stone-200" />
           <h2
             id="drawer-title"
             className={
@@ -94,12 +97,18 @@ export function Drawer({
           {header}
           <div
             className={cn(
-              "max-h-[80svh] overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3",
+              "max-h-[80svh] min-h-0 overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3",
+              footer && "pb-3",
               contentClassName,
             )}
           >
             {children}
           </div>
+          {footer ? (
+            <div className="shrink-0 border-t border-stone-200/70 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3">
+              {footer}
+            </div>
+          ) : null}
         </motion.div>
       ) : null}
     </AnimatePresence>,

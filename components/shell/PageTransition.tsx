@@ -39,7 +39,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
   const dir = nav.axis !== axis ? Math.sign(axis - nav.axis) || 1 : nav.dir;
 
   return (
-    <div className="relative h-full overflow-hidden bg-[#FEF6F2]" dir="ltr">
+    <div className="relative h-full overflow-hidden bg-[#FFFDFB]" dir="ltr">
       <AnimatePresence initial={false} custom={dir}>
         <motion.div
           key={pathname}
@@ -49,7 +49,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
           animate="center"
           exit="leave"
           transition={TRANSITION}
-          className="absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#FEF6F2] pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(4.25rem+2rem+env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0"
+          className="absolute inset-0 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-[#FFFDFB] pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(4.25rem+2rem+env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0"
           style={{ willChange: "transform" }}
         >
           <div dir="rtl">

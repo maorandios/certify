@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FEF6F2",
+  themeColor: "#FFFDFB",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -55,7 +55,7 @@ export default function RootLayout({
       className={`${googleSans.variable} ${googleSans.className} h-full`}
       style={{ colorScheme: "light" }}
     >
-      <body className="h-full bg-[#FEF6F2] font-sans antialiased">
+      <body className="h-full bg-[#FFFDFB] font-sans antialiased">
         {children}
       </body>
     </html>

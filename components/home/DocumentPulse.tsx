@@ -21,21 +21,19 @@ export function DocumentPulse({
   return (
     <section
       aria-label="מצב מסמכים"
-      className="grid min-h-[168px] w-full grid-cols-3 rounded-[52px] bg-[#2B2B2B] px-2 py-7"
+      className="grid min-h-[168px] w-full grid-cols-3 overflow-visible rounded-[52px] bg-[#2B2B2B] px-3 py-7"
     >
       <Segment
         icon={OctagonX}
         label="פגי תוקף"
         value={attention.expired}
         total={total}
-        glowId="ring-glow-expired"
       />
       <Segment
         icon={ClockFading}
         label="לקראת פג תוקף"
         value={attention.expiring}
         total={total}
-        glowId="ring-glow-expiring"
         divider
       />
       <Segment
@@ -43,7 +41,6 @@ export function DocumentPulse({
         label="נדרש בדיקה"
         value={attention.needsReview}
         total={total}
-        glowId="ring-glow-review"
         divider
       />
     </section>
@@ -55,14 +52,12 @@ function Segment({
   label,
   value,
   total,
-  glowId,
   divider = false,
 }: {
   icon: LucideIcon;
   label: string;
   value: number;
   total: number;
-  glowId: string;
   divider?: boolean;
 }) {
   const active = value > 0;
@@ -71,15 +66,15 @@ function Segment({
     <div
       className={cn(
         "flex flex-col items-center justify-center gap-3.5 px-2 text-center",
-        divider && "border-s border-[#FEF6F2]/12",
+        divider && "border-s border-[#FFFDFB]/12",
       )}
     >
-      <ProgressRing value={value} max={total} glowId={glowId} />
+      <ProgressRing value={value} max={total} />
       <div className="flex items-center justify-center gap-1">
         <Icon
           className={cn(
             "size-3.5 shrink-0",
-            active ? "text-[#FEF6F2]/80" : "text-[#FEF6F2]/35",
+            active ? "text-[#FFFDFB]/80" : "text-[#FFFDFB]/35",
           )}
           strokeWidth={1.75}
           aria-hidden
@@ -87,7 +82,7 @@ function Segment({
         <p
           className={cn(
             "text-[11px] font-medium leading-4",
-            active ? "text-[#FEF6F2]/80" : "text-[#FEF6F2]/40",
+            active ? "text-[#FFFDFB]/80" : "text-[#FFFDFB]/40",
           )}
         >
           {label}
@@ -100,11 +95,9 @@ function Segment({
 function ProgressRing({
   value,
   max,
-  glowId,
 }: {
   value: number;
   max: number;
-  glowId: string;
 }) {
   const size = 64;
   const stroke = 3.5;
@@ -112,51 +105,55 @@ function ProgressRing({
   const circumference = 2 * Math.PI * radius;
   const progress = Math.min(1, Math.max(0, value / max));
   const offset = circumference * (1 - progress);
+  const cx = size / 2;
+  const arc = {
+    cx,
+    cy: cx,
+    r: radius,
+    fill: "none" as const,
+    strokeLinecap: "round" as const,
+    strokeDasharray: circumference,
+    strokeDashoffset: offset,
+  };
 
   return (
     <div className="relative size-[64px] shrink-0 overflow-visible" aria-hidden>
-      <svg width={size} height={size} overflow="visible" className="-rotate-90">
-        <defs>
-          <filter
-            id={glowId}
-            x="-50%"
-            y="-50%"
-            width="200%"
-            height="200%"
-            colorInterpolationFilters="sRGB"
-          >
-            <feGaussianBlur stdDeviation="2.2" result="blur" />
-            <feFlood floodColor="#FF5900" floodOpacity="0.95" result="color" />
-            <feComposite in="color" in2="blur" operator="in" result="glow" />
-            <feMerge>
-              <feMergeNode in="glow" />
-              <feMergeNode in="glow" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="rgba(254,246,242,0.16)"
-          strokeWidth={stroke}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="#FF5900"
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          filter={`url(#${glowId})`}
-        />
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        overflow="visible"
+      >
+        <g transform={`rotate(-90 ${cx} ${cx})`}>
+          <circle
+            cx={cx}
+            cy={cx}
+            r={radius}
+            fill="none"
+            stroke="rgba(255,253,251,0.16)"
+            strokeWidth={stroke}
+          />
+        </g>
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold tabular-nums text-[#FEF6F2]">
+      {progress > 0 ? (
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          overflow="visible"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            filter:
+              "drop-shadow(0 0 3px #FF5900) drop-shadow(0 0 8px rgba(255,89,0,0.7))",
+          }}
+        >
+          <g transform={`rotate(-90 ${cx} ${cx})`}>
+            <circle {...arc} stroke="#FF5900" strokeWidth={9} strokeOpacity={0.28} />
+            <circle {...arc} stroke="#FF5900" strokeWidth={stroke} />
+          </g>
+        </svg>
+      ) : null}
+      <span className="absolute inset-0 flex items-center justify-center text-[12px] font-semibold tabular-nums text-[#FFFDFB]">
         {value}/{max}
       </span>
     </div>

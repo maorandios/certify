@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { copy } from "@/lib/copy";
-import { useAppStore } from "@/lib/store";
+import { selectActiveJobs, useAppStore } from "@/lib/store";
 import { cn } from "@/lib/cn";
 
 type ProcessingCapsuleProps = {
@@ -13,9 +13,7 @@ type ProcessingCapsuleProps = {
 export function ProcessingCapsule({ placement }: ProcessingCapsuleProps) {
   const jobs = useAppStore((state) => state.jobs);
   const openJobsSheet = useAppStore((state) => state.openJobsSheet);
-  const activeJobs = jobs.filter(
-    (job) => job.stage !== "completed" && job.stage !== "failed",
-  );
+  const activeJobs = selectActiveJobs(jobs);
 
   if (activeJobs.length === 0) return null;
 
@@ -28,7 +26,7 @@ export function ProcessingCapsule({ placement }: ProcessingCapsuleProps) {
     <motion.button
       type="button"
       layout
-      onClick={openJobsSheet}
+      onClick={() => openJobsSheet()}
       className={cn(
         "flex min-h-11 items-center gap-2 rounded-full bg-stone-900 px-4 text-sm font-medium text-white shadow-lg",
         placement === "mobile" &&

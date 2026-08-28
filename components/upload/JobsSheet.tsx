@@ -1,8 +1,15 @@
 "use client";
 
 import { CircleAlert, Loader2 } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { copy, uploadStageLabels } from "@/lib/copy";
 import { selectActiveJobs, selectPendingJobs, useAppStore } from "@/lib/store";
+import {
+  ActivitySheetHeader,
+  activityForJob,
+  sheetDialogClassName,
+  sheetDrawerClassName,
+} from "@/components/home/ActivitySheetHeader";
 import { Dialog } from "@/components/ui/dialog";
 import { Drawer } from "@/components/ui/drawer";
 import { useIsDesktop } from "@/components/ui/use-is-desktop";
@@ -11,9 +18,26 @@ export function JobsSheet() {
   const open = useAppStore((state) => state.ui.jobsSheetOpen);
   const closeJobsSheet = useAppStore((state) => state.closeJobsSheet);
   const jobs = useAppStore((state) => state.jobs);
+  const focusedJobId = useAppStore((state) => state.ui.focusedJobId);
+  const activityItems = useAppStore((state) => state.activity);
+  const employees = useAppStore((state) => state.employees);
   const activeJobs = selectActiveJobs(jobs);
   const pendingJobs = selectPendingJobs(jobs);
   const isDesktop = useIsDesktop();
+  const feedActivity = activityForJob(activityItems, focusedJobId);
+  const employee = employees.find(
+    (entry) => entry.id === feedActivity?.employeeId,
+  );
+  const extractedName = feedActivity?.jobId
+    ? jobs.find((job) => job.id === feedActivity.jobId)?.extracted?.fullName
+    : undefined;
+  const header = feedActivity ? (
+    <ActivitySheetHeader
+      item={feedActivity}
+      employee={employee}
+      employeeName={extractedName}
+    />
+  ) : undefined;
 
   const body = (
     <ul className="space-y-3">
@@ -24,7 +48,11 @@ export function JobsSheet() {
           {activeJobs.map((job) => (
             <li
               key={job.id}
-              className="flex items-start gap-3 rounded-2xl bg-stone-50 p-3"
+              className={cn(
+                "flex items-start gap-3 rounded-2xl bg-stone-50 p-3",
+                focusedJobId === job.id &&
+                  "ring-2 ring-[var(--color-brand)] ring-offset-2 ring-offset-[#FFFDFB]",
+              )}
             >
               <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-[var(--color-brand)]" />
               <div className="min-w-0">
@@ -38,7 +66,11 @@ export function JobsSheet() {
           {pendingJobs.map((job) => (
             <li
               key={job.id}
-              className="flex items-start gap-3 rounded-2xl bg-[var(--color-brand-soft,#FFEDE0)]/60 p-3"
+              className={cn(
+                "flex items-start gap-3 rounded-2xl bg-[var(--color-brand-soft,#FFEDE0)]/60 p-3",
+                focusedJobId === job.id &&
+                  "ring-2 ring-[var(--color-brand)] ring-offset-2 ring-offset-[#FFFDFB]",
+              )}
             >
               <CircleAlert className="mt-0.5 size-4 shrink-0 text-[var(--color-brand)]" />
               <div className="min-w-0">
@@ -62,6 +94,9 @@ export function JobsSheet() {
           if (!next) closeJobsSheet();
         }}
         title={copy.jobsTitle}
+        titleHidden={header != null}
+        header={header}
+        className={sheetDialogClassName}
       >
         {body}
       </Dialog>
@@ -75,6 +110,9 @@ export function JobsSheet() {
         if (!next) closeJobsSheet();
       }}
       title={copy.jobsTitle}
+      titleHidden={header != null}
+      header={header}
+      className={sheetDrawerClassName}
     >
       {body}
     </Drawer>

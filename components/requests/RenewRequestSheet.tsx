@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { BellRing, Copy, Link2, Share2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/cn";
 import { copy, documentTypeLabels } from "@/lib/copy";
 import { formatDotDate, formatHeDate } from "@/lib/dates";
 import { publicRequestUrl } from "@/lib/links";
@@ -10,6 +11,12 @@ import { useAppStore } from "@/lib/store";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ResponsiveSheet } from "@/components/ui/sheet";
+import {
+  ActivitySheetHeader,
+  activityForDocument,
+  sheetDialogClassName,
+  sheetDrawerClassName,
+} from "@/components/home/ActivitySheetHeader";
 
 type RenewRequestSheetProps = {
   open: boolean;
@@ -27,6 +34,15 @@ export function RenewRequestSheet({
   documentId,
   activityId,
 }: RenewRequestSheetProps) {
+  const activityItems = useAppStore((state) => state.activity);
+  const employees = useAppStore((state) => state.employees);
+  const feedActivity =
+    (activityId
+      ? activityItems.find((entry) => entry.id === activityId)
+      : undefined) ??
+    (documentId ? activityForDocument(activityItems, documentId) : undefined);
+  const employee = employees.find((entry) => entry.id === employeeId);
+
   return (
     <ResponsiveSheet
       open={open}
@@ -34,7 +50,14 @@ export function RenewRequestSheet({
         if (!next) onClose();
       }}
       title="בקשת חידוש מסמך"
-      dialogClassName="max-w-xl"
+      titleHidden={feedActivity != null}
+      drawerClassName={sheetDrawerClassName}
+      dialogClassName={cn(sheetDialogClassName, "max-w-xl")}
+      header={
+        feedActivity ? (
+          <ActivitySheetHeader item={feedActivity} employee={employee} />
+        ) : undefined
+      }
     >
       <RenewBody
         employeeId={employeeId}

@@ -29,8 +29,6 @@ const ACTIONS: Record<ActivityActionKind, string> = {
   confirm_field: "אישור שדה",
   replace_file: "קובץ חלופי",
   confirm_replacement: "החלטת החלפה",
-  renew_document: "בקשת חידוש",
-  view_result: "צפייה בתוצאה",
 };
 
 const FORCED: Array<{ value: DemoForcedState; label: string }> = [

@@ -13,6 +13,7 @@ import type { DocumentRecord, Employee, ShareLink } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ResponsiveSheet } from "@/components/ui/sheet";
+import { sheetDrawerClassName } from "@/components/home/ActivitySheetHeader";
 
 type ShareSheetProps = {
   open: boolean;
@@ -38,7 +39,8 @@ export function ShareSheet({ open, onClose, employeeIds }: ShareSheetProps) {
         if (!next) onClose();
       }}
       title={copy.shareTitle}
-      dialogClassName="max-h-[80vh] max-w-xl overflow-y-auto"
+      drawerClassName={sheetDrawerClassName}
+      dialogClassName="max-h-[80vh] max-w-xl overflow-y-auto bg-[#FFFDFB]"
     >
       {/* Mounts fresh on open, resetting the selection and phase. */}
       <ShareBody employeeIds={employeeIds} />

@@ -4,10 +4,16 @@ import { useMemo, useState } from "react";
 import { Camera, ImageIcon, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { copy } from "@/lib/copy";
 import { useAppStore, type EmployeeInput } from "@/lib/store";
-import type { Employee } from "@/lib/types";
+import type { ActivityItem, Employee } from "@/lib/types";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ResponsiveSheet } from "@/components/ui/sheet";
+import {
+  ActivitySheetHeader,
+  sheetContentClassName,
+  sheetDialogClassName,
+  sheetDrawerClassName,
+} from "@/components/home/ActivitySheetHeader";
 
 const PALETTE = [
   "#0F766E",
@@ -49,6 +55,8 @@ type EmployeeFormSheetProps = {
   prefill?: Partial<EmployeeInput>;
   /** Resume this feed decision after the employee is created. */
   activityId?: string;
+  /** Feed event that opened this form — drives the shared sheet header. */
+  activity?: ActivityItem;
   onSaved?: (employee: Employee) => void;
 };
 
@@ -59,8 +67,19 @@ export function EmployeeFormSheet({
   employee,
   prefill,
   activityId,
+  activity,
   onSaved,
 }: EmployeeFormSheetProps) {
+  const [held, setHeld] = useState(activity);
+  if (activity && held?.id !== activity.id) {
+    setHeld(activity);
+  }
+  const displayActivity = activity ?? held;
+  const jobs = useAppStore((state) => state.jobs);
+  const extractedName = displayActivity?.jobId
+    ? jobs.find((job) => job.id === displayActivity.jobId)?.extracted?.fullName
+    : undefined;
+
   return (
     <ResponsiveSheet
       open={open}
@@ -68,6 +87,19 @@ export function EmployeeFormSheet({
         if (!next) onClose();
       }}
       title={mode === "edit" ? copy.formEditTitle : copy.formCreateTitle}
+      titleHidden={displayActivity != null}
+      drawerClassName={sheetDrawerClassName}
+      contentClassName={sheetContentClassName}
+      dialogClassName={sheetDialogClassName}
+      header={
+        displayActivity ? (
+          <ActivitySheetHeader
+            item={displayActivity}
+            employee={employee}
+            employeeName={extractedName ?? prefill?.fullName}
+          />
+        ) : undefined
+      }
     >
       {/* The body mounts fresh every time the sheet opens, resetting state. */}
       <FormBody
