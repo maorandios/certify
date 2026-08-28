@@ -52,7 +52,7 @@ export const activityTypeLabels: Record<ActivityType, string> = {
   action: "נדרשת פעולה",
   alert: "התראה",
   update: "עדכון",
-  processing: "בעיבוד",
+  processing: "סייקל פעיל",
 };
 
 export const copy = {

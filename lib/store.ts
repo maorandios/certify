@@ -141,7 +141,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "certify-p0",
-      version: 6,
+      version: 8,
       migrate: (persistedState) => {
         const previous = persistedState as { jobs?: UploadJob[] };
         const next = createSeed();

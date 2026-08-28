@@ -482,6 +482,38 @@ export function createSeed(now = new Date()): {
       metadataHe: `הסמכת ביצוע · בתוקף עד ${formatDotDate(isoDaysFrom(now, 345))}`,
     },
     {
+      id: "act-cycle-link",
+      type: "processing",
+      titleHe: "שולחים קישור לעובד לחידוש האישור הרפואי",
+      employeeId: "emp-ahmad",
+      timestamp: hoursAgo(0.4, now),
+    },
+    {
+      id: "act-natan-long",
+      type: "action",
+      titleHe:
+        "לא הצלחנו לקרוא את תאריך התפוגה באישור העבודה בגובה ולכן נדרשת בדיקה ידנית של המסמך",
+      employeeId: "emp-natan",
+      timestamp: hoursAgo(1, now),
+    },
+    {
+      id: "act-salah-long",
+      type: "alert",
+      titleHe:
+        "האישור הרפואי פג תוקף ולא הועלה מסמך חלופי מאז הביקור האחרון באתר העבודה",
+      employeeId: "emp-salah",
+      timestamp: hoursAgo(3, now),
+      action: { labelHe: "העלה אישור חדש", kind: "openUpload" },
+    },
+    {
+      id: "act-viktor-long",
+      type: "update",
+      titleHe:
+        "קיבלנו אישור מעודכן אבל עדיין חסרים פרטים מזהים ולכן השארנו אותו להשלמה ידנית",
+      employeeId: "emp-viktor",
+      timestamp: hoursAgo(5, now),
+    },
+    {
       id: "act-roi",
       type: "update",
       titleHe: "עדיין לא הועלו מסמכים",

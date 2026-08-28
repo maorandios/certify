@@ -8,7 +8,6 @@ import {
 } from "@/lib/activity";
 import { getDocumentAttention, isActiveDocument } from "@/lib/status";
 import { useAppStore } from "@/lib/store";
-import type { ActivityActionKind } from "@/lib/types";
 
 export function HomeScreen() {
   const seedAnchor = useAppStore((state) => state.seedAnchor);
@@ -16,8 +15,6 @@ export function HomeScreen() {
   const documents = useAppStore((state) => state.documents);
   const activity = useAppStore((state) => state.activity);
   const jobs = useAppStore((state) => state.jobs);
-  const openComposer = useAppStore((state) => state.openComposer);
-  const openJobsSheet = useAppStore((state) => state.openJobsSheet);
   const statusNow = new Date(seedAnchor);
   const attention = getDocumentAttention(documents, statusNow);
   const processing = buildProcessingActivity(jobs);
@@ -27,16 +24,10 @@ export function HomeScreen() {
     statusNow,
   );
 
-  function handleAction(kind: ActivityActionKind) {
-    if (kind === "openUpload") openComposer();
-    if (kind === "openJobs") openJobsSheet();
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 py-3 lg:max-w-3xl lg:px-0 lg:py-8">
       <DocumentPulse
         attention={attention}
-        userCount={employees.length}
         activeCount={documents.filter(isActiveDocument).length}
       />
       <section>
@@ -44,8 +35,6 @@ export function HomeScreen() {
           items={items}
           employees={employees}
           documents={documents}
-          jobs={jobs}
-          onAction={handleAction}
         />
       </section>
     </div>
