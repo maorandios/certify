@@ -40,6 +40,7 @@
 html {
   height: 100%;
   background: #fef6f2;
+  color-scheme: light;
   touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
 }

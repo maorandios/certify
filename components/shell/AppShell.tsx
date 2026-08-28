@@ -46,10 +46,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-svh flex-col bg-[#FEF6F2]">
       <DesktopTopNav />
-      <TopBar />
-      <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-        <PageTransition>{children}</PageTransition>
-      </main>
+      <div className="relative min-h-0 flex-1">
+        <TopBar />
+        <main className="h-full overflow-x-hidden overflow-y-auto overscroll-y-contain pt-[calc(3.5rem+env(safe-area-inset-top))] lg:pt-0">
+          <PageTransition>{children}</PageTransition>
+        </main>
+      </div>
       {jobCount > 0 ? (
         <div className="flex shrink-0 justify-center px-4 pb-2 lg:hidden">
           <ProcessingCapsule placement="mobile" />

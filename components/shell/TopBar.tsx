@@ -5,12 +5,14 @@ import { SettingsEntry } from "./SettingsEntry";
 
 export function TopBar() {
   return (
-    <header className="shrink-0 bg-[#FEF6F2] pt-[env(safe-area-inset-top)] lg:hidden">
-      <div className="flex h-14 items-center justify-between px-5">
-        <h1 className="m-0">
-          <AppBrand />
-        </h1>
-        <SettingsEntry />
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-30 lg:hidden">
+      <div className="pointer-events-auto border-b border-[#2B2B2B]/5 bg-[#FEF6F2]/70 pt-[env(safe-area-inset-top)] backdrop-blur-[24px] backdrop-saturate-150 [-webkit-backdrop-filter:blur(24px)_saturate(1.5)]">
+        <div className="flex h-14 items-center justify-between px-5">
+          <h1 className="m-0">
+            <AppBrand />
+          </h1>
+          <SettingsEntry />
+        </div>
       </div>
     </header>
   );

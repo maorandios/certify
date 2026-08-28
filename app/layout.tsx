@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   applicationName: "Certify",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "סרטיפי",
   },
   formatDetection: {
@@ -54,6 +54,7 @@ export default function RootLayout({
       lang="he"
       dir="rtl"
       className={`${googleSans.variable} ${googleSans.className} h-full`}
+      style={{ colorScheme: "light" }}
     >
       <body className="h-full bg-[#FEF6F2] font-sans antialiased">
         <AppShell>{children}</AppShell>
