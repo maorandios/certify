@@ -39,7 +39,7 @@ export function activityForDocument(
 
 export function activityForJob(
   items: ActivityItem[],
-  jobId: string | undefined,
+  jobId: string | null | undefined,
 ): ActivityItem | undefined {
   if (!jobId) return undefined;
   return (
