@@ -27,10 +27,10 @@ const typeIcons = {
 };
 
 const typeDot: Record<ActivityType, string> = {
-  action: "bg-[#0004FF]",
-  alert: "bg-[#FF0048]",
-  update: "bg-[#00FF4D]",
-  processing: "bg-[#2B2B2B]",
+  action: "bg-[#0004FF] shadow-[0_0_6px_#0004FF]",
+  alert: "bg-[#FF0048] shadow-[0_0_6px_#FF0048]",
+  update: "bg-[#00FF62] shadow-[0_0_6px_#00FF62]",
+  processing: "bg-[#2B2B2B] shadow-[0_0_6px_rgba(43,43,43,0.55)]",
 };
 
 const metaText = "text-[12px] font-normal leading-4 text-stone-500";
@@ -80,7 +80,7 @@ export function ActivityCard({
             className={cn(
               "size-4 text-[#2B2B2B]",
               item.type === "processing" &&
-                "animate-[spin_2.5s_linear_infinite]",
+                "animate-[spin_2.5s_linear_infinite_reverse]",
             )}
           />
         </span>
