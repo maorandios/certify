@@ -48,16 +48,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       <DesktopTopNav />
       <div className="relative min-h-0 flex-1">
         <TopBar />
-        <main className="h-full overflow-x-hidden overflow-y-auto overscroll-y-contain pt-[calc(3.5rem+env(safe-area-inset-top))] lg:pt-0">
+        <main className="h-full overflow-x-hidden overflow-y-auto overscroll-y-contain pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(4.25rem+2rem+env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0">
           <PageTransition>{children}</PageTransition>
         </main>
+        {jobCount > 0 ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4 pb-2 lg:hidden">
+            <div className="pointer-events-auto">
+              <ProcessingCapsule placement="mobile" />
+            </div>
+          </div>
+        ) : null}
+        <BottomNav />
       </div>
-      {jobCount > 0 ? (
-        <div className="flex shrink-0 justify-center px-4 pb-2 lg:hidden">
-          <ProcessingCapsule placement="mobile" />
-        </div>
-      ) : null}
-      <BottomNav />
       <UploadComposer />
       <JobsSheet />
       <JobRunner />
