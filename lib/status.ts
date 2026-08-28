@@ -12,6 +12,20 @@ export function isActiveDocument(document: DocumentRecord): boolean {
   return document.lifecycle === "active";
 }
 
+/** Documents that count toward an employee's current status. */
+export function isStatusDocument(document: DocumentRecord): boolean {
+  return (
+    document.lifecycle === "active" || document.lifecycle === "needs_review"
+  );
+}
+
+/** Documents kept as history: replaced or archived, read-only. */
+export function isHistoryDocument(document: DocumentRecord): boolean {
+  return (
+    document.lifecycle === "superseded" || document.lifecycle === "archived"
+  );
+}
+
 export function isDocumentExpired(
   document: DocumentRecord,
   now = new Date(),
@@ -30,34 +44,36 @@ export function isDocumentExpiring(
   return remaining <= warning;
 }
 
+export function documentNeedsReview(document: DocumentRecord): boolean {
+  return (
+    document.lifecycle === "needs_review" ||
+    document.processingStatus === "uncertain" ||
+    document.processingStatus === "unreadable" ||
+    (document.uncertainFieldKeys?.length ?? 0) > 0
+  );
+}
+
 export function getEmployeeDocumentStatus(
   employee: Employee,
   documents: DocumentRecord[],
   now = new Date(),
 ): EmployeeDocumentStatus {
-  const active = documents.filter(
+  const counted = documents.filter(
     (document) =>
-      document.employeeId === employee.id && isActiveDocument(document),
+      document.employeeId === employee.id && isStatusDocument(document),
   );
 
-  if (active.length === 0) return "no_documents";
+  if (counted.length === 0) return "no_documents";
 
-  if (
-    active.some(
-      (document) =>
-        document.processingStatus === "uncertain" ||
-        document.processingStatus === "unreadable" ||
-        (document.uncertainFieldKeys?.length ?? 0) > 0,
-    )
-  ) {
+  if (counted.some(documentNeedsReview)) {
     return "needs_review";
   }
 
-  if (active.some((document) => isDocumentExpired(document, now))) {
+  if (counted.some((document) => isDocumentExpired(document, now))) {
     return "expired";
   }
 
-  if (active.some((document) => isDocumentExpiring(document, now))) {
+  if (counted.some((document) => isDocumentExpiring(document, now))) {
     return "expiring";
   }
 
@@ -96,14 +112,6 @@ export type DocumentAttention = {
   needsReview: number;
 };
 
-function needsReview(document: DocumentRecord): boolean {
-  return (
-    document.processingStatus === "uncertain" ||
-    document.processingStatus === "unreadable" ||
-    (document.uncertainFieldKeys?.length ?? 0) > 0
-  );
-}
-
 export function getDocumentAttention(
   documents: DocumentRecord[],
   now = new Date(),
@@ -115,8 +123,8 @@ export function getDocumentAttention(
   };
 
   for (const document of documents) {
-    if (!isActiveDocument(document)) continue;
-    if (needsReview(document)) {
+    if (!isStatusDocument(document)) continue;
+    if (documentNeedsReview(document)) {
       attention.needsReview += 1;
     } else if (isDocumentExpired(document, now)) {
       attention.expired += 1;
@@ -130,4 +138,49 @@ export function getDocumentAttention(
 
 export function attentionTotal(attention: DocumentAttention): number {
   return attention.expired + attention.expiring + attention.needsReview;
+}
+
+/** One concise Hebrew explanation for an employee row. */
+export function employeeStatusDetailHe(
+  employee: Employee,
+  documents: DocumentRecord[],
+  now = new Date(),
+): string {
+  const owned = documents.filter(
+    (document) => document.employeeId === employee.id,
+  );
+  const counted = owned.filter(isStatusDocument);
+  const status = getEmployeeDocumentStatus(employee, documents, now);
+
+  if (status === "no_documents") return "טרם הועלו מסמכים";
+
+  if (status === "needs_review") {
+    const count = counted.filter(documentNeedsReview).length;
+    return count === 1 ? "מסמך אחד דורש בדיקה" : `${count} מסמכים דורשים בדיקה`;
+  }
+
+  if (status === "expired") {
+    const count = counted.filter((document) =>
+      isDocumentExpired(document, now),
+    ).length;
+    return count === 1 ? "מסמך אחד פג תוקף" : `${count} מסמכים פגי תוקף`;
+  }
+
+  if (status === "expiring") {
+    const expiring = counted
+      .filter((document) => isDocumentExpiring(document, now))
+      .sort(
+        (a, b) => daysUntil(a.expiresOn ?? "", now) - daysUntil(b.expiresOn ?? "", now),
+      );
+    const days = daysUntil(expiring[0]?.expiresOn ?? "", now);
+    if (expiring.length === 1) {
+      return days === 0
+        ? "אישור אחד פג היום"
+        : `אישור אחד יפוג בעוד ${days} ימים`;
+    }
+    return `${expiring.length} אישורים יפוגו בקרוב`;
+  }
+
+  const activeCount = counted.length;
+  return activeCount === 1 ? "מסמך פעיל אחד" : `${activeCount} מסמכים פעילים`;
 }

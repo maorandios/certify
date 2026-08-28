@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 
@@ -22,27 +22,28 @@ const variants = {
 };
 
 function FrozenRoute({ children }: { children: ReactNode }) {
-  const frozen = useRef(children);
-  return <>{frozen.current}</>;
+  // Captured once on mount so the exiting page keeps its content stable.
+  const [frozen] = useState(children);
+  return <>{frozen}</>;
 }
 
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const axisRef = useRef(routeAxis(pathname));
-  const dirRef = useRef(1);
-
   const axis = routeAxis(pathname);
-  if (axis !== axisRef.current) {
-    dirRef.current = Math.sign(axis - axisRef.current) || 1;
-    axisRef.current = axis;
+  // Direction is derived by comparing to the previous route axis using the
+  // render-phase "adjust state during render" pattern.
+  const [nav, setNav] = useState({ axis, dir: 1 });
+  if (nav.axis !== axis) {
+    setNav({ axis, dir: Math.sign(axis - nav.axis) || 1 });
   }
+  const dir = nav.axis !== axis ? Math.sign(axis - nav.axis) || 1 : nav.dir;
 
   return (
     <div className="relative h-full overflow-hidden bg-[#FEF6F2]" dir="ltr">
-      <AnimatePresence initial={false} custom={dirRef.current}>
+      <AnimatePresence initial={false} custom={dir}>
         <motion.div
           key={pathname}
-          custom={dirRef.current}
+          custom={dir}
           variants={variants}
           initial="enter"
           animate="center"

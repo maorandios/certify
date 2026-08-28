@@ -7,7 +7,7 @@ import type {
   Employee,
 } from "@/lib/types";
 import { ActivityCard } from "./ActivityCard";
-import { PostActionsSheet } from "./PostActionsSheet";
+import { ActivityActionSheet } from "./ActivityActionSheet";
 
 type ActivityFeedProps = {
   items: ActivityItem[];
@@ -42,7 +42,7 @@ export function ActivityFeed({
           />
         ))}
       </ol>
-      <PostActionsSheet
+      <ActivityActionSheet
         item={actionItem}
         onClose={() => setActionItem(null)}
       />

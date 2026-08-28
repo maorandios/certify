@@ -16,9 +16,18 @@ const STAGE_PROGRESS: Record<UploadStage, number> = {
   identifying: 0.4,
   extracting: 0.65,
   matching: 0.85,
+  action_required: 1,
   completed: 1,
   failed: 1,
 };
+
+/**
+ * Items shown in the feed: resolved actionable events are hidden because
+ * their outcome is represented by a newer update item.
+ */
+export function visibleActivityItems(items: ActivityItem[]): ActivityItem[] {
+  return items.filter((item) => !item.resolved);
+}
 
 export function sortActivityItems(
   items: ActivityItem[],
@@ -66,10 +75,15 @@ export function isExpiringAlert(
   return Boolean(document && isDocumentExpiring(document, now));
 }
 
+const PROCESSING_SET: UploadStage[] = [
+  "reading",
+  "identifying",
+  "extracting",
+  "matching",
+];
+
 export function buildProcessingActivity(jobs: UploadJob[]): ActivityItem | null {
-  const active = jobs.filter(
-    (job) => job.stage !== "completed" && job.stage !== "failed",
-  );
+  const active = jobs.filter((job) => PROCESSING_SET.includes(job.stage));
   if (active.length === 0) return null;
 
   return {
@@ -85,23 +99,19 @@ export function buildProcessingActivity(jobs: UploadJob[]): ActivityItem | null 
         ? uploadStageLabels[active[0].stage]
         : copy.processingSupport,
     jobId: active[0].id,
-    action: {
-      labelHe: copy.openProcessing,
-      kind: "openJobs",
-    },
   };
 }
 
 export function processingProgress(jobs: UploadJob[]): number {
-  const active = jobs.filter(
-    (job) => job.stage !== "completed" && job.stage !== "failed",
-  );
+  const active = jobs.filter((job) => PROCESSING_SET.includes(job.stage));
   if (active.length === 0) return 0;
   const total = active.reduce((sum, job) => sum + STAGE_PROGRESS[job.stage], 0);
   return total / active.length;
 }
 
 export function unresolvedActivityCount(items: ActivityItem[]): number {
-  return items.filter((item) => item.type === "action" || item.type === "alert")
-    .length;
+  return items.filter(
+    (item) =>
+      !item.resolved && (item.type === "action" || item.type === "alert"),
+  ).length;
 }

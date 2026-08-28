@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
-import { AppShell } from "@/components/shell/AppShell";
 import "./globals.css";
 
 const googleSans = localFont({
@@ -57,7 +56,7 @@ export default function RootLayout({
       style={{ colorScheme: "light" }}
     >
       <body className="h-full bg-[#FEF6F2] font-sans antialiased">
-        <AppShell>{children}</AppShell>
+        {children}
       </body>
     </html>
   );

@@ -99,7 +99,8 @@ describe("document attention pulse", () => {
     expect(getDocumentAttention(seed.documents, now)).toEqual({
       expired: 2,
       expiring: 2,
-      needsReview: 1,
+      // Fatima's uncertain safety cert + Natan's height cert pending review.
+      needsReview: 2,
     });
   });
 });

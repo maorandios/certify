@@ -2,7 +2,8 @@
 
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "sonner";
-import { useAppStore } from "@/lib/store";
+import { selectActiveJobs, useAppStore } from "@/lib/store";
+import { DemoSwitcher } from "@/components/dev/DemoSwitcher";
 import { BottomNav } from "./BottomNav";
 import { DesktopTopNav } from "./DesktopTopNav";
 import { JobRunner } from "./JobRunner";
@@ -15,10 +16,7 @@ import { UploadComposer } from "@/components/upload/UploadComposer";
 export function AppShell({ children }: { children: ReactNode }) {
   const hydrate = useAppStore((state) => state.hydrate);
   const jobCount = useAppStore(
-    (state) =>
-      state.jobs.filter(
-        (job) => job.stage !== "completed" && job.stage !== "failed",
-      ).length,
+    (state) => selectActiveJobs(state.jobs).length,
   );
 
   useEffect(() => {
@@ -63,6 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <UploadComposer />
       <JobsSheet />
       <JobRunner />
+      <DemoSwitcher />
       <Toaster
         position="top-center"
         dir="rtl"

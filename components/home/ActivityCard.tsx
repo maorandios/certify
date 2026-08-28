@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   CircleUserRound,
@@ -12,6 +11,7 @@ import {
 import { cn } from "@/lib/cn";
 import { activityTypeLabels } from "@/lib/copy";
 import { formatRelativeHe } from "@/lib/dates";
+import { useMounted } from "@/components/ui/use-mounted";
 import type {
   ActivityItem,
   ActivityType,
@@ -41,13 +41,10 @@ const metaText = "text-[12px] font-normal leading-4 text-stone-500";
  * mismatch that breaks React on production builds.
  */
 function RelativeTime({ timestamp }: { timestamp: string }) {
-  const [label, setLabel] = useState("");
-  useEffect(() => {
-    setLabel(formatRelativeHe(timestamp));
-  }, [timestamp]);
+  const mounted = useMounted();
   return (
     <time className="text-xs text-stone-400" suppressHydrationWarning>
-      {label}
+      {mounted ? formatRelativeHe(timestamp) : ""}
     </time>
   );
 }

@@ -33,7 +33,7 @@ export function DesktopTopNav() {
           </Link>
           <button
             type="button"
-            onClick={openComposer}
+            onClick={() => openComposer()}
             className="flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
           >
             <FilePlus2 className="size-4" aria-hidden />
