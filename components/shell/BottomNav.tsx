@@ -36,7 +36,7 @@ export function BottomNav() {
           <span>{copy.navFeed}</span>
         </Link>
         <button type="button" onClick={openComposer} className={itemClass}>
-          <LogoMark className="absolute top-0 left-1/2 size-[63px] -translate-x-1/2 -translate-y-1/2 shadow-[0_6px_20px_rgba(255,89,0,0.4)]" />
+          <LogoMark className="absolute top-0 left-1/2 size-[47px] -translate-x-1/2 -translate-y-1/2 shadow-[0_6px_20px_rgba(255,89,0,0.4)]" />
           <span className="size-[22px]" aria-hidden />
           <span>{copy.navCreate}</span>
         </button>

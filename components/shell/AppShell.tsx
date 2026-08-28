@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <DesktopTopNav />
       <div className="relative min-h-0 flex-1">
         <TopBar />
-        <main className="h-full overflow-x-hidden overflow-y-auto overscroll-y-contain pt-[calc(3.5rem+env(safe-area-inset-top))] pb-[calc(4.25rem+2rem+env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0">
+        <main className="h-full overflow-hidden">
           <PageTransition>{children}</PageTransition>
         </main>
         {jobCount > 0 ? (
