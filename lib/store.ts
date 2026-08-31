@@ -287,10 +287,15 @@ export const useAppStore = create<AppState>()(
       createDocumentRequest: (input) => {
         const title = input.title.trim();
         const recipientName = input.recipientName.trim();
-        const labels = input.documents.map((doc) => doc.label.trim()).filter(Boolean);
+        const labeledDocuments = input.documents
+          .map((doc) => ({
+            label: doc.label.trim(),
+            instructions: doc.instructions?.trim() || undefined,
+          }))
+          .filter((doc) => doc.label);
         if (!title || !recipientName) return { error: "missing_fields" };
         if (!input.phone?.trim() && !input.email?.trim()) return { error: "missing_contact" };
-        if (labels.length === 0) return { error: "missing_slots" };
+        if (labeledDocuments.length === 0) return { error: "missing_slots" };
         const now = new Date();
         const parsedExpiry = input.expiresAt ? new Date(input.expiresAt) : undefined;
         if (parsedExpiry && Number.isNaN(parsedExpiry.getTime())) return { error: "invalid_expiry" };
@@ -298,11 +303,11 @@ export const useAppStore = create<AppState>()(
         const expiresAt = parsedExpiry?.toISOString() ?? addDays(now, 14).toISOString();
         const id = newId("req");
         const token = makeToken("r");
-        const requestedDocuments = labels.map((label, index) => ({
+        const requestedDocuments = labeledDocuments.map((doc, index) => ({
           id: `slot-${id}-${index + 1}`,
           requestId: id,
-          label,
-          instructions: input.documents[index]?.instructions,
+          label: doc.label,
+          instructions: doc.instructions,
           sortOrder: index,
         }));
         const created: DocumentRequest = {
