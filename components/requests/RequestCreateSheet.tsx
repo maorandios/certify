@@ -1,26 +1,29 @@
 "use client";
 
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
   ArrowRight,
   AtSign,
+  Calendar,
   CalendarSync,
   CircleCheck,
+  CircleMinus,
+  CirclePlus,
   CircleUser,
+  Copy,
   FileText,
-  Plus,
+  MessageCircle,
   Repeat2,
   Smartphone,
   SquareUserRound,
-  Trash2,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { copy } from "@/lib/copy";
-import { formatHeDate } from "@/lib/dates";
+import { formatDotDate, formatHeDate, parseIsoDate, toIsoDate } from "@/lib/dates";
 import { publicRequestUrl, whatsappShareUrl } from "@/lib/links";
 import type { DocumentRequest } from "@/lib/requests/types";
 import { useAppStore } from "@/lib/store";
@@ -78,9 +81,36 @@ function IconField({
   );
 }
 
+function SummaryRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="shrink-0 text-stone-400">{icon}</span>
+      <p className="min-w-0 text-[15px] text-[#252525]">
+        <span className="text-[13.5px] font-medium text-stone-400">{label}</span>
+        {value ? (
+          <>
+            <span className="px-1.5 text-stone-300" aria-hidden>
+              ·
+            </span>
+            <span className="font-medium">{value}</span>
+          </>
+        ) : null}
+      </p>
+    </div>
+  );
+}
+
 function StepHeading({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <h3 className="flex items-center gap-2 px-1 text-[15px] font-semibold">
+    <h3 className="mb-3 flex items-center gap-2 px-1 text-[15px] font-semibold">
       {icon}
       <span>{children}</span>
     </h3>
@@ -97,7 +127,7 @@ function StepNav({
   nextLabel: string;
 }) {
   return (
-    <div className="flex w-full items-center gap-2">
+    <div className="mt-6 flex w-full items-center gap-2">
       {onBack ? (
         <Button variant="ghost" className={wizardBackClassName} onClick={onBack}>
           <ArrowRight className="size-4" aria-hidden />
@@ -112,9 +142,9 @@ function StepNav({
   );
 }
 
-type DocRow = { label: string; instructions: string };
+type DocRow = { label: string };
 
-const emptyRow = (): DocRow => ({ label: "", instructions: "" });
+const emptyRow = (): DocRow => ({ label: "" });
 
 export function RequestCreateSheet() {
   const open = useAppStore((state) => state.ui.requestCreateOpen);
@@ -130,6 +160,8 @@ export function RequestCreateSheet() {
   const [docs, setDocs] = useState<DocRow[]>([emptyRow()]);
   const [expiresAt, setExpiresAt] = useState("");
   const [created, setCreated] = useState<DocumentRequest | null>(null);
+  const dateFieldRef = useRef<HTMLInputElement>(null);
+  const ignoreSheetCloseRef = useRef(false);
 
   function reset() {
     setStep(0);
@@ -145,6 +177,11 @@ export function RequestCreateSheet() {
 
   function handleClose(next: boolean) {
     if (!next) {
+      if (ignoreSheetCloseRef.current) {
+        ignoreSheetCloseRef.current = false;
+        dateFieldRef.current?.blur();
+        return;
+      }
       close();
       reset();
     }
@@ -162,7 +199,7 @@ export function RequestCreateSheet() {
       phone,
       email,
       documents: docs,
-      expiresAt: expiresAt ? new Date(expiresAt).toISOString() : "",
+      expiresAt: expiresAt ? parseIsoDate(expiresAt).toISOString() : "",
     });
     if ("error" in result) {
       toast.error(
@@ -187,7 +224,7 @@ export function RequestCreateSheet() {
   const canLeaveDocuments = docs.some((doc) => doc.label.trim());
 
   const detailsStep = (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       <StepHeading icon={<SquareUserRound className="size-4 shrink-0" aria-hidden />}>
         {copy.createStepDetails}
       </StepHeading>
@@ -239,55 +276,49 @@ export function RequestCreateSheet() {
   );
 
   const documentsStep = (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       <StepHeading icon={<FileText className="size-4 shrink-0" aria-hidden />}>
         {copy.createStepDocuments}
       </StepHeading>
-      {docs.map((doc, index) => (
-        <div key={index} className="grid gap-2">
-          <div className="flex gap-2">
-            <input
-              dir="rtl"
-              className={cn(fieldClassName, "flex-1")}
-              placeholder={copy.createDocumentLabel}
-              value={doc.label}
-              onChange={(event) =>
+      {docs.map((doc, index) => {
+        const isLast = index === docs.length - 1;
+        return (
+          <div key={index} className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <IconField
+                icon={<FileText className="size-4" aria-hidden />}
+                placeholder={copy.createDocumentLabel}
+                value={doc.label}
+                onChange={(event) =>
+                  setDocs((current) =>
+                    current.map((row, rowIndex) =>
+                      rowIndex === index ? { label: event.target.value } : row,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <button
+              type="button"
+              className="flex size-[calc(2.75rem*1.15)] shrink-0 items-center justify-center text-stone-400"
+              aria-label={isLast ? copy.createAddDocument : copy.createRemoveDocument}
+              onClick={() =>
                 setDocs((current) =>
-                  current.map((row, rowIndex) =>
-                    rowIndex === index ? { ...row, label: event.target.value } : row,
-                  ),
+                  isLast
+                    ? [...current, emptyRow()]
+                    : current.filter((_, rowIndex) => rowIndex !== index),
                 )
               }
-            />
-            {docs.length > 1 ? (
-              <Button
-                variant="ghost"
-                className="min-h-[calc(2.75rem*1.15)] px-3"
-                onClick={() => setDocs((current) => current.filter((_, rowIndex) => rowIndex !== index))}
-              >
-                <Trash2 className="size-4" aria-hidden />
-              </Button>
-            ) : null}
+            >
+              {isLast ? (
+                <CirclePlus className="size-5" aria-hidden />
+              ) : (
+                <CircleMinus className="size-5" aria-hidden />
+              )}
+            </button>
           </div>
-          <input
-            dir="rtl"
-            className={fieldClassName}
-            placeholder={copy.createDocumentHint}
-            value={doc.instructions}
-            onChange={(event) =>
-              setDocs((current) =>
-                current.map((row, rowIndex) =>
-                  rowIndex === index ? { ...row, instructions: event.target.value } : row,
-                ),
-              )
-            }
-          />
-        </div>
-      ))}
-      <Button variant="secondary" onClick={() => setDocs((current) => [...current, emptyRow()])}>
-        <Plus className="size-4" aria-hidden />
-        {copy.createAddDocument}
-      </Button>
+        );
+      })}
       <StepNav
         nextLabel={copy.createNext}
         onBack={() => goTo(0)}
@@ -303,72 +334,123 @@ export function RequestCreateSheet() {
   );
 
   const scheduleStep = (
-    <div className="grid gap-3">
+    <div className="grid gap-4">
       <StepHeading icon={<CalendarSync className="size-4 shrink-0" aria-hidden />}>
         {copy.createStepSchedule}
       </StepHeading>
       <label className="grid gap-1 px-1 text-[13px] text-stone-500">
         {copy.createExpiry}
-        <input
-          type="datetime-local"
-          dir="rtl"
-          className={cn(fieldClassName, "text-[var(--ink)]")}
-          value={expiresAt}
-          onChange={(event) => setExpiresAt(event.target.value)}
-        />
+        <span className="relative block">
+          <span className="pointer-events-none absolute start-4 top-1/2 z-10 -translate-y-1/2 text-stone-400">
+            <Calendar className="size-4" aria-hidden />
+          </span>
+          <input
+            ref={dateFieldRef}
+            type="date"
+            dir="rtl"
+            min={toIsoDate(new Date())}
+            className={cn(
+              fieldClassName,
+              "ps-11 text-transparent caret-transparent [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0",
+            )}
+            value={expiresAt}
+            onFocus={() => {
+              ignoreSheetCloseRef.current = true;
+            }}
+            onChange={(event) => {
+              setExpiresAt(event.target.value);
+              ignoreSheetCloseRef.current = false;
+            }}
+            onBlur={() => {
+              window.setTimeout(() => {
+                ignoreSheetCloseRef.current = false;
+              }, 300);
+            }}
+          />
+          <span className="pointer-events-none absolute inset-y-0 start-11 end-4 flex items-center justify-start text-[15px] text-[var(--ink)]">
+            {expiresAt ? (
+              formatDotDate(expiresAt)
+            ) : (
+              <span className="text-stone-400">dd/mm/yyyy</span>
+            )}
+          </span>
+        </span>
       </label>
       <StepNav nextLabel={copy.createFinish} onBack={() => goTo(1)} onNext={submit} />
     </div>
   );
 
   const summaryStep = created ? (
-    <div className="grid gap-3">
-      <StepHeading icon={<CircleCheck className="size-4 shrink-0" aria-hidden />}>
-        {copy.createStepSummary}
-      </StepHeading>
-      <div className="grid gap-2 rounded-[20px] border border-[var(--line)] px-4 py-3 text-[14px]">
-        <p className="font-semibold">{created.title}</p>
-        <p className="text-stone-500">
-          {copy.recipientLabel}: {created.recipient.name}
-        </p>
+    <div className="grid gap-6">
+      <div className="grid gap-4 px-1">
+        <SummaryRow
+          icon={<Zap className="size-4" aria-hidden />}
+          label={copy.createRequestName}
+          value={created.title}
+        />
+        <SummaryRow
+          icon={<CircleUser className="size-4" aria-hidden />}
+          label={copy.createRecipientName}
+          value={created.recipient.name}
+        />
         {created.recipient.phone ? (
-          <p className="text-stone-500">
-            {copy.createPhone}: {created.recipient.phone}
-          </p>
+          <SummaryRow
+            icon={<Smartphone className="size-4" aria-hidden />}
+            label={copy.createPhone}
+            value={created.recipient.phone}
+          />
         ) : null}
         {created.recipient.email ? (
-          <p className="text-stone-500">
-            {copy.createEmail}: {created.recipient.email}
-          </p>
+          <SummaryRow
+            icon={<AtSign className="size-4" aria-hidden />}
+            label={copy.createEmail}
+            value={created.recipient.email}
+          />
         ) : null}
-        <p className="text-stone-500">
-          {copy.createExpiry}: {formatHeDate(created.expiresAt.slice(0, 10))}
-        </p>
-        <ul className="grid gap-1 pt-1">
-          {created.requestedDocuments.map((doc) => (
-            <li key={doc.id}>
-              <span className="font-medium">{doc.label}</span>
-              {doc.instructions?.trim() ? (
-                <span className="text-stone-500"> — {doc.instructions}</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <SummaryRow
+          icon={<Calendar className="size-4" aria-hidden />}
+          label={copy.createExpiry}
+          value={formatHeDate(created.expiresAt.slice(0, 10))}
+        />
+        <div className="grid gap-2">
+          <SummaryRow
+            icon={<FileText className="size-4" aria-hidden />}
+            label={copy.createStepDocuments}
+          />
+          <ul className="grid gap-1.5 ps-6">
+            {created.requestedDocuments.map((doc) => (
+              <li key={doc.id} className="text-[15px] font-medium text-[#252525]">
+                {doc.label}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-      <Button onClick={() => window.open(whatsappShareUrl(created.messageHe), "_blank")}>
-        {copy.shareWhatsapp}
-      </Button>
-      <Button
-        variant="secondary"
-        onClick={() => {
-          void navigator.clipboard
-            .writeText(publicRequestUrl(created.token))
-            .then(() => toast.success(copy.linkCopiedToast))
-            .catch(() => toast.error(copy.answerError));
-        }}
-      >
-        {copy.shareCopyLink}
-      </Button>
+      <div className="flex w-full items-center gap-2">
+        <Button
+          className={cn(
+            wizardPrimaryClassName,
+            "!border-transparent !bg-[#25D366] hover:!bg-[#20BD5A] [&_svg]:!text-[#252525]",
+          )}
+          onClick={() => window.open(whatsappShareUrl(created.messageHe), "_blank")}
+        >
+          <MessageCircle className="size-4" aria-hidden />
+          {copy.shareWhatsapp}
+        </Button>
+        <Button
+          variant="ghost"
+          className={cn(wizardBackClassName, "w-auto flex-1")}
+          onClick={() => {
+            void navigator.clipboard
+              .writeText(publicRequestUrl(created.token))
+              .then(() => toast.success(copy.linkCopiedToast))
+              .catch(() => toast.error(copy.answerError));
+          }}
+        >
+          <Copy className="size-4" aria-hidden />
+          {copy.shareCopyLink}
+        </Button>
+      </div>
     </div>
   ) : null;
 
@@ -382,18 +464,37 @@ export function RequestCreateSheet() {
     <Frame
       open={open}
       onOpenChange={handleClose}
-      title={copy.createRequestTitle}
+      title={created ? copy.createEventCreatedTitle : copy.createRequestTitle}
       titleHidden
       header={
-        <h2 className="flex items-center gap-2 px-5 pt-4 text-lg font-semibold">
-          <Repeat2 className="size-5 shrink-0" aria-hidden />
-          <span>{copy.createRequestTitle}</span>
+        <h2
+          className={cn(
+            "flex items-center gap-2 px-5 pt-5 text-lg font-semibold",
+            created ? "pb-4" : "pb-2",
+          )}
+        >
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#252525] text-[#FF5900]">
+            {created ? (
+              <Zap className="size-5" aria-hidden />
+            ) : (
+              <Repeat2 className="size-5" aria-hidden />
+            )}
+          </span>
+          <span>{created ? copy.createEventCreatedTitle : copy.createRequestTitle}</span>
         </h2>
       }
       className={className}
       overlayClassName={sheetOverlayClassName}
+      contentClassName={created ? "pt-5" : undefined}
     >
-      <div className={cn(sheetContentClassName, "overflow-x-hidden px-1 py-2")} dir="ltr">
+      <div
+        className={cn(
+          sheetContentClassName,
+          "overflow-x-hidden px-1 pb-5",
+          created ? "pt-0" : "pt-3",
+        )}
+        dir="ltr"
+      >
         <AnimatePresence initial={false} mode="popLayout" custom={dir}>
           <motion.div
             key={visibleStep}

@@ -92,6 +92,7 @@ export const copy = {
   requestNotFound: "הבקשה לא נמצאה",
 
   createRequestTitle: "יצירת אירוע חדש",
+  createEventCreatedTitle: "אירוע חדש",
   createRequestName: "שם האירוע",
   createRecipientName: "שם איש הקשר",
   createPhone: "טלפון",
@@ -100,7 +101,8 @@ export const copy = {
   createDocumentLabel: "שם המסמך",
   createDocumentHint: "למשל אישור עבודה בגובה",
   createAddDocument: "הוספת מסמך",
-  createExpiry: "תפוגת הקישור",
+  createRemoveDocument: "הסר מסמך",
+  createExpiry: "מועד סגירת האירוע",
   createSubmit: "צור בקשה",
   createNeedContact: "נדרש טלפון או אימייל",
   createNeedSlot: "נדרש מסמך אחד לפחות",

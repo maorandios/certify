@@ -15,6 +15,7 @@ type DialogProps = {
   overlayClassName?: string;
   header?: ReactNode;
   footer?: ReactNode;
+  contentClassName?: string;
 };
 
 export function Dialog({
@@ -27,6 +28,7 @@ export function Dialog({
   overlayClassName,
   header,
   footer,
+  contentClassName,
 }: DialogProps) {
   const mounted = useMounted();
   if (!open || !mounted) return null;
@@ -68,8 +70,8 @@ export function Dialog({
         <div
           className={
             header || footer
-              ? "min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-4"
-              : "mt-4"
+              ? cn("min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-4", contentClassName)
+              : cn("mt-4", contentClassName)
           }
         >
           {children}
