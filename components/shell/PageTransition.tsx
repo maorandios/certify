@@ -9,8 +9,8 @@ const TRANSITION = { type: "tween" as const, duration: 0.38, ease: EASE };
 
 function routeAxis(path: string): number {
   if (path === "/") return 0;
-  if (path.startsWith("/employees/")) return -2;
-  if (path.startsWith("/employees")) return -1;
+  if (path.startsWith("/requests/")) return -2;
+  if (path.startsWith("/requests")) return -1;
   if (path.startsWith("/settings")) return 1;
   return 0;
 }

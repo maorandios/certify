@@ -9,19 +9,10 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import {
-  activityHasChevron,
-  isActivityInteractive,
-  type ActivityOpenContext,
-} from "@/lib/activityOpen";
+import { activityHasChevron, isActivityInteractive } from "@/lib/activityOpen";
 import { activityTypeLabels } from "@/lib/copy";
 import { formatRelativeHe } from "@/lib/dates";
-import { useMounted } from "@/components/ui/use-mounted";
-import type {
-  ActivityItem,
-  ActivityType,
-  Employee,
-} from "@/lib/types";
+import type { ActivityItem, ActivityType } from "@/lib/types";
 
 const typeIcons = {
   action: Settings2,
@@ -39,42 +30,28 @@ const typeDot: Record<ActivityType, string> = {
 
 const metaText = "text-[12px] font-normal leading-4 text-stone-500";
 
-/**
- * Relative time depends on Date.now(), so the server-rendered label drifts
- * from the client's. Rendering it only after mount avoids the hydration
- * mismatch that breaks React on production builds.
- */
 function RelativeTime({ timestamp }: { timestamp: string }) {
-  const mounted = useMounted();
   return (
-    <time className="text-xs text-stone-400" suppressHydrationWarning>
-      {mounted ? formatRelativeHe(timestamp) : ""}
+    <time className="text-xs text-stone-400">
+      {formatRelativeHe(timestamp)}
     </time>
   );
 }
 
 type ActivityCardProps = {
   item: ActivityItem;
-  employees: Employee[];
-  openContext: ActivityOpenContext;
   isLast?: boolean;
   onPostPress: (item: ActivityItem) => void;
 };
 
 export function ActivityCard({
   item,
-  employees,
   isLast = false,
-  openContext,
   onPostPress,
 }: ActivityCardProps) {
-  const employee = employees.find((entry) => entry.id === item.employeeId);
-  const related = (item.relatedEmployeeIds ?? [])
-    .map((id) => employees.find((entry) => entry.id === id))
-    .filter((entry): entry is Employee => Boolean(entry));
   const TypeIcon = typeIcons[item.type];
-  const interactive = isActivityInteractive(item, openContext);
-  const showChevron = activityHasChevron(item, openContext);
+  const interactive = isActivityInteractive(item);
+  const showChevron = activityHasChevron(item);
 
   function activate() {
     if (!interactive) return;
@@ -99,6 +76,7 @@ export function ActivityCard({
       <div
         role={interactive ? "button" : undefined}
         tabIndex={interactive ? 0 : undefined}
+        data-qa-scenario={item.qaScenarioId}
         className={cn(
           "flex min-w-0 flex-1 items-center gap-4 text-start",
           isLast ? "pb-1" : "pb-6",
@@ -135,21 +113,11 @@ export function ActivityCard({
             {item.titleHe}
           </h3>
 
-          {employee ? (
-            <span className="mt-0.5 inline-flex min-w-0 max-w-[55%] items-center gap-1">
+          {item.metadataHe ? (
+            <span className="mt-0.5 inline-flex min-w-0 max-w-[80%] items-center gap-1">
               <CircleUserRound className="size-3 shrink-0 text-stone-500" aria-hidden />
-              <span className="truncate text-[11.55px] font-medium leading-4 text-stone-500">
-                {employee.fullName}
-              </span>
+              <span className={cn("truncate", metaText)}>{item.metadataHe}</span>
             </span>
-          ) : null}
-
-          {related.length > 0 && !employee && item.metadataHe ? (
-            <p className={cn("mt-0.5 truncate", metaText)}>{item.metadataHe}</p>
-          ) : null}
-
-          {!employee && item.metadataHe && related.length === 0 ? (
-            <p className={cn("mt-0.5", metaText)}>{item.metadataHe}</p>
           ) : null}
         </div>
         {showChevron ? (

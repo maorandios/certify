@@ -1,7 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
+import { useMounted } from "./use-mounted";
 
 type DialogProps = {
   open: boolean;
@@ -26,10 +28,11 @@ export function Dialog({
   header,
   footer,
 }: DialogProps) {
-  if (!open) return null;
+  const mounted = useMounted();
+  if (!open || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
       <button
         type="button"
         className={cn(
@@ -77,6 +80,7 @@ export function Dialog({
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

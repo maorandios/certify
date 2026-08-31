@@ -13,9 +13,9 @@ const itemClass =
 
 export function BottomNav() {
   const pathname = usePathname();
-  const openComposer = useAppStore((state) => state.openComposer);
+  const openRequestCreate = useAppStore((state) => state.openRequestCreate);
   const feedActive = pathname === "/";
-  const usersActive = pathname.startsWith("/employees");
+  const usersActive = pathname.startsWith("/requests");
 
   return (
     <nav
@@ -37,7 +37,7 @@ export function BottomNav() {
         </Link>
         <button
           type="button"
-          onClick={() => openComposer()}
+          onClick={() => openRequestCreate()}
           className={itemClass}
         >
           <LogoMark className="absolute top-0 left-1/2 size-[47px] -translate-x-1/2 -translate-y-1/2 shadow-[0_6px_20px_rgba(255,89,0,0.4)]" />
@@ -45,7 +45,7 @@ export function BottomNav() {
           <span>{copy.navCreate}</span>
         </button>
         <Link
-          href="/employees"
+          href="/requests"
           aria-current={usersActive ? "page" : undefined}
           className={itemClass}
         >

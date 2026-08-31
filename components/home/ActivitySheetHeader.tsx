@@ -3,7 +3,7 @@
 import { CircleUserRound, Flag, RefreshCcwDot, Settings2, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { activityTypeLabels } from "@/lib/copy";
-import type { ActivityItem, ActivityType, Employee } from "@/lib/types";
+import type { ActivityItem, ActivityType } from "@/lib/types";
 
 const typeIcons = {
   action: Settings2,
@@ -26,15 +26,11 @@ export const sheetDrawerClassName = "max-h-[85dvh] bg-[#FFFDFB]";
 export const sheetDialogClassName = "max-h-[85dvh] max-w-md bg-[#FFFDFB]";
 export const sheetContentClassName = "max-h-[min(70dvh,calc(85dvh-7rem))]";
 
-export function activityForDocument(
+export function activityForSourceFile(
   items: ActivityItem[],
-  documentId: string,
+  sourceFileId: string,
 ): ActivityItem | undefined {
-  return (
-    items.find((entry) => entry.documentId === documentId && !entry.resolved) ??
-    items.find((entry) => entry.relatedDocumentIds?.includes(documentId)) ??
-    items.find((entry) => entry.documentId === documentId)
-  );
+  return items.find((entry) => entry.sourceFileId === sourceFileId);
 }
 
 export function activityForJob(
@@ -50,20 +46,16 @@ export function activityForJob(
 
 type ActivitySheetHeaderProps = {
   item: ActivityItem;
-  employee?: Employee;
-  employeeName?: string;
-  onEmployeeClick?: () => void;
+  personName?: string;
 };
 
-/** Status row shared by every feed drawer: type on the start, employee on the end. */
+/** Status row shared by every feed drawer: type on the start, name on the end. */
 export function ActivitySheetHeader({
   item,
-  employee,
-  employeeName,
-  onEmployeeClick,
+  personName,
 }: ActivitySheetHeaderProps) {
   const TypeIcon = typeIcons[item.type];
-  const name = employee?.fullName ?? employeeName;
+  const name = personName;
 
   const person = name ? (
     <>
@@ -99,19 +91,9 @@ export function ActivitySheetHeader({
           </span>
         </div>
         {person ? (
-          onEmployeeClick && employee ? (
-            <button
-              type="button"
-              onClick={onEmployeeClick}
-              className="flex max-w-[46%] shrink-0 items-center gap-1.5 text-start"
-            >
-              {person}
-            </button>
-          ) : (
-            <span className="flex max-w-[46%] shrink-0 items-center gap-1.5">
-              {person}
-            </span>
-          )
+          <span className="flex max-w-[46%] shrink-0 items-center gap-1.5">
+            {person}
+          </span>
         ) : null}
       </div>
     </div>

@@ -1,38 +1,48 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { fileSizeLabel, isoDaysFrom } from "./dates";
-import { copy, documentTypeLabels } from "./copy";
-import { buildRenewMessageHe, makeToken, publicRequestUrl } from "./links";
-import { createSeed } from "./mock/seed";
-import { stampActivity } from "./activityOpen";
+import { addDays, fileSizeLabel } from "./dates";
+import { copy } from "./copy";
+import { newId } from "./ids";
+import { makeToken, publicRequestUrl, publicReuploadUrl } from "./links";
+import { createRequestSeed } from "./mock/requestSeed";
+import { createRequestQaDataset } from "./mock/requestQaDataset";
+import { extractionForUploadScenario } from "./mock/requestExtractions";
+import { nextStage, STAGE_DURATION_MS } from "./mock/uploadMachine";
+import { buildRequestMessageHe, buildReuploadMessageHe } from "./requests/message";
+import { isSubmittedWorker } from "./requests/status";
 import {
-  applyTargetedAssignment,
-  applyUploadOutcome,
-  buildHappyPathExtraction,
-  nextStage,
-  STAGE_DURATION_MS,
-} from "./mock/uploadMachine";
+  applyRequestExpiry,
+  canReopenRequest,
+  extendRequestExpiry,
+  isReuploadLinkOpen,
+  reopenRequest,
+} from "./requests/transitions";
 import type {
-  ActivityActionKind,
-  ActivityItem,
-  DocumentRecord,
   DocumentRequest,
-  DocumentTypeId,
-  Employee,
-  MockUploadOutcome,
-  ShareLink,
+  RequestDocumentSubmission,
+  RequestReuploadLink,
+  RequestWorkerSubmission,
+} from "./requests/types";
+import {
+  applyAnswer,
+  applyExtraction,
+  createInvestigatingCase,
+  createWorkerCase,
+  evaluateWorker,
+  type ResolutionWorld,
+} from "./resolution/engine";
+import { projectRequestActivity } from "./resolution/projection";
+import type { ResolutionAnswer, ResolutionCase } from "./resolution/types";
+import type {
+  ActivityItem,
+  DemoScenarioId,
+  SlotUploadContext,
+  SourceFile,
   UploadJob,
 } from "./types";
 
 export type ComposerContext = {
-  /** replace_file flow: activity resolved when this upload completes. */
-  resolvesActivityId?: string;
-  /** Upload scoped to a known employee (from employee details / renew). */
-  target?: {
-    employeeId: string;
-    typeId?: DocumentTypeId;
-    replacesDocumentId?: string;
-  };
+  slot?: SlotUploadContext;
 } | null;
 
 export type DemoForcedState = "empty" | "loading" | "error" | null;
@@ -40,178 +50,233 @@ export type DemoForcedState = "empty" | "loading" | "error" | null;
 type UiState = {
   composerOpen: boolean;
   composerContext: ComposerContext;
+  requestCreateOpen: boolean;
   jobsSheetOpen: boolean;
   focusedJobId: string | null;
   hydrated: boolean;
 };
 
-export type EmployeeInput = {
-  fullName: string;
-  identityNumber: string;
-  profileImage?: string;
-  description?: string;
-};
-
 type AppState = {
-  /**
-   * ISO timestamp of when the seed data was generated. All time-relative
-   * status math must use this anchor instead of `new Date()` so the server
-   * and client render identical HTML (avoids hydration errors).
-   */
   seedAnchor: string;
-  employees: Employee[];
-  documents: DocumentRecord[];
+  requests: DocumentRequest[];
+  workerSubmissions: RequestWorkerSubmission[];
+  documentSubmissions: RequestDocumentSubmission[];
+  reuploadLinks: RequestReuploadLink[];
   activity: ActivityItem[];
   jobs: UploadJob[];
-  shares: ShareLink[];
-  requests: DocumentRequest[];
-  nextOutcome: MockUploadOutcome;
+  cases: ResolutionCase[];
+  sourceFiles: SourceFile[];
+  undoLog: ResolutionWorld["undoLog"];
+  nextOutcome: DemoScenarioId;
   jobsPaused: boolean;
   demoForce: DemoForcedState;
   ui: UiState;
   lastToast: string | null;
+  hasHydrated: boolean;
+  qaDatasetActive: boolean;
 
   hydrate: () => void;
   openComposer: (context?: ComposerContext) => void;
   closeComposer: () => void;
+  openRequestCreate: () => void;
+  closeRequestCreate: () => void;
   openJobsSheet: (jobId?: string) => void;
   closeJobsSheet: () => void;
   consumeToast: () => void;
 
-  enqueueUpload: (file: { name: string; type: string; size: number }) => void;
+  createDocumentRequest: (input: {
+    title: string;
+    recipientName: string;
+    phone?: string;
+    email?: string;
+    documents: Array<{ label: string; instructions?: string }>;
+    expiresAt: string;
+  }) => DocumentRequest | { error: string };
+  markRequestOpened: (token: string) => void;
+  closeRequest: (requestId: string) => void;
+  reopenRequest: (requestId: string) => void;
+  revokeRequest: (requestId: string) => void;
+  extendRequestExpiry: (requestId: string, expiresAt: string) => void;
+  updateRequestMessage: (requestId: string, messageHe: string) => void;
+
+  startWorkerDraft: (input: {
+    requestId: string;
+    submittedFullName: string;
+    submittedIdentityNumber?: string;
+  }) => RequestWorkerSubmission;
+  attachSlotFile: (input: {
+    workerSubmissionId: string;
+    requestedDocumentId: string;
+    file: { name: string; type: string; size: number };
+    processNow?: boolean;
+  }) => void;
+  submitWorker: (workerSubmissionId: string) => void;
+  uploadFileForSlot: (input: {
+    workerSubmissionId: string;
+    requestedDocumentId: string;
+    file: { name: string; type: string; size: number };
+  }) => void;
+  enqueueUpload: (
+    file: { name: string; type: string; size: number },
+    options?: { slot?: SlotUploadContext },
+  ) => void;
   tickJobs: (now?: Date) => void;
 
-  addEmployee: (input: EmployeeInput) => Employee;
-  updateEmployee: (id: string, patch: Partial<EmployeeInput>) => void;
-
-  assignActivityToEmployee: (activityId: string, employeeId: string) => void;
-  createEmployeeFromActivity: (
-    activityId: string,
-    input: EmployeeInput,
-  ) => Employee;
-  confirmActivityField: (activityId: string, value: string) => void;
-  confirmDocumentField: (documentId: string, value: string) => void;
-  decideReplacement: (
-    activityId: string,
-    decision: "replace" | "keep_both" | "discard",
-  ) => void;
-  resolveActivity: (activityId: string) => void;
-
-  createShare: (input: {
-    employeeIds: string[];
-    documentIds: string[];
-  }) => ShareLink;
-  createDocumentRequest: (input: {
-    employeeId: string;
-    documentType?: DocumentTypeId;
-    replacesDocumentId?: string;
-  }) => DocumentRequest;
-  updateRequestMessage: (requestId: string, messageHe: string) => void;
-  markRequestSent: (requestId: string, activityId?: string) => void;
-  markRequestOpened: (token: string) => void;
-  submitRequestUpload: (
+  answerCase: (caseId: string, answer: ResolutionAnswer) => void;
+  approveWorker: (workerSubmissionId: string) => void;
+  createReuploadLink: (input: {
+    workerSubmissionId: string;
+    requestedDocumentId: string;
+  }) => RequestReuploadLink | null;
+  submitReupload: (
     token: string,
     file: { name: string; type: string; size: number },
   ) => void;
 
-  setNextOutcome: (outcome: MockUploadOutcome) => void;
+  setNextOutcome: (outcome: DemoScenarioId) => void;
   setJobsPaused: (paused: boolean) => void;
   completeActiveJobs: () => void;
   setDemoForce: (state: DemoForcedState) => void;
   resetMockData: () => void;
-  addDemoDocument: (kind: "expiring" | "expired") => void;
-  triggerDemoAction: (kind: ActivityActionKind) => void;
-  createDemoShare: (expired?: boolean) => ShareLink;
-  createDemoRequest: () => DocumentRequest | null;
+  loadEdgeCaseQaDataset: () => void;
+  resetEdgeCaseQaDataset: () => void;
+  restoreRegularDemoSeed: () => void;
 };
-
-const seed = createSeed();
 
 function previewKind(mime: string): "image" | "pdf" {
   return mime.includes("pdf") ? "pdf" : "image";
 }
 
-function newId(prefix: string): string {
-  return typeof crypto !== "undefined" && crypto.randomUUID
-    ? `${prefix}-${crypto.randomUUID()}`
-    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+function worldFrom(state: {
+  requests: DocumentRequest[];
+  workerSubmissions: RequestWorkerSubmission[];
+  documentSubmissions: RequestDocumentSubmission[];
+  reuploadLinks: RequestReuploadLink[];
+  cases: ResolutionCase[];
+  sourceFiles: SourceFile[];
+  activity: ActivityItem[];
+  jobs: UploadJob[];
+  undoLog: ResolutionWorld["undoLog"];
+}): ResolutionWorld {
+  return {
+    requests: state.requests,
+    workerSubmissions: state.workerSubmissions,
+    documentSubmissions: state.documentSubmissions,
+    reuploadLinks: state.reuploadLinks,
+    cases: state.cases,
+    sourceFiles: state.sourceFiles,
+    activity: state.activity,
+    jobs: state.jobs,
+    undoLog: state.undoLog,
+  };
 }
 
-function resolveItem(
-  activity: ActivityItem[],
-  activityId: string,
-  at = new Date(),
-) {
-  const resolvedAt = at.toISOString();
-  return activity.map((item) =>
-    item.id === activityId
-      ? { ...item, resolved: true, resolvedAt }
-      : item,
-  );
+function applyWorld(world: ResolutionWorld) {
+  return {
+    requests: world.requests,
+    workerSubmissions: world.workerSubmissions,
+    documentSubmissions: world.documentSubmissions,
+    reuploadLinks: world.reuploadLinks,
+    cases: world.cases,
+    sourceFiles: world.sourceFiles,
+    activity: world.activity,
+    jobs: world.jobs,
+    undoLog: world.undoLog,
+  };
 }
 
-function completeJob(jobs: UploadJob[], jobId: string | undefined, now: Date) {
-  if (!jobId) return jobs;
-  return jobs.map((job) =>
-    job.id === jobId
-      ? { ...job, stage: "completed" as const, updatedAt: now.toISOString() }
-      : job,
-  );
+export const APP_STORE_VERSION = 14;
+
+export function bootPersistedStore(): () => void {
+  const finish = () => {
+    if (!useAppStore.getState().hasHydrated) {
+      useAppStore.getState().hydrate();
+    }
+  };
+  const persistApi = useAppStore.persist;
+  if (!persistApi) {
+    finish();
+    return () => undefined;
+  }
+  const unsub = persistApi.onFinishHydration(finish);
+  try {
+    void Promise.resolve(persistApi.rehydrate()).then(finish, finish);
+  } catch {
+    finish();
+  }
+  return unsub;
 }
 
-const OUTCOME_FOR_ACTION: Partial<
-  Record<ActivityActionKind, MockUploadOutcome>
-> = {
-  select_employee: "ambiguous_employee",
-  create_employee: "employee_not_found",
-  confirm_field: "uncertain_field",
-  replace_file: "unreadable_file",
-  confirm_replacement: "uncertain_replacement",
-};
-
-export const APP_STORE_VERSION = 10;
+function applyExpiryToRequests(requests: DocumentRequest[], now: Date) {
+  return requests.map((request) => applyRequestExpiry(request, now));
+}
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      seedAnchor: seed.generatedAt,
-      employees: seed.employees,
-      documents: seed.documents,
-      activity: seed.activity,
-      jobs: seed.jobs,
-      shares: [],
+      seedAnchor: "",
       requests: [],
+      workerSubmissions: [],
+      documentSubmissions: [],
+      reuploadLinks: [],
+      activity: [],
+      jobs: [],
+      cases: [],
+      sourceFiles: [],
+      undoLog: [],
       nextOutcome: "certain_match",
       jobsPaused: false,
       demoForce: null,
-      lastToast: null,
       ui: {
         composerOpen: false,
         composerContext: null,
+        requestCreateOpen: false,
         jobsSheetOpen: false,
         focusedJobId: null,
         hydrated: false,
       },
+      lastToast: null,
+      hasHydrated: false,
+      qaDatasetActive: false,
 
-      hydrate: () =>
+      hydrate: () => {
+        const current = get();
+        if (current.hasHydrated) return;
+        if (
+          current.seedAnchor &&
+          Array.isArray(current.requests) &&
+          Array.isArray(current.workerSubmissions) &&
+          Array.isArray(current.documentSubmissions)
+        ) {
+          set({
+            hasHydrated: true,
+            requests: applyExpiryToRequests(current.requests, new Date(current.seedAnchor)),
+          });
+          return;
+        }
+        const seed = createRequestSeed(new Date());
+        set({
+          ...applyWorld(seed),
+          seedAnchor: seed.seedAnchor,
+          hasHydrated: true,
+        });
+      },
+
+      openComposer: (context) =>
         set((state) => ({
-          ui: { ...state.ui, hydrated: true },
-        })),
-      openComposer: (context = null) =>
-        set((state) => ({
-          ui: { ...state.ui, composerOpen: true, composerContext: context },
+          ui: { ...state.ui, composerOpen: true, composerContext: context ?? null },
         })),
       closeComposer: () =>
         set((state) => ({
           ui: { ...state.ui, composerOpen: false, composerContext: null },
         })),
+      openRequestCreate: () =>
+        set((state) => ({ ui: { ...state.ui, requestCreateOpen: true } })),
+      closeRequestCreate: () =>
+        set((state) => ({ ui: { ...state.ui, requestCreateOpen: false } })),
       openJobsSheet: (jobId) =>
         set((state) => ({
-          ui: {
-            ...state.ui,
-            jobsSheetOpen: true,
-            focusedJobId: jobId ?? null,
-          },
+          ui: { ...state.ui, jobsSheetOpen: true, focusedJobId: jobId ?? null },
         })),
       closeJobsSheet: () =>
         set((state) => ({
@@ -219,742 +284,512 @@ export const useAppStore = create<AppState>()(
         })),
       consumeToast: () => set({ lastToast: null }),
 
-      enqueueUpload: (file) => {
-        const now = new Date();
-        const context = get().ui.composerContext;
-        const job: UploadJob = {
-          id: newId("job"),
-          stage: "reading",
-          fileMeta: {
-            name: file.name,
-            mime: file.type || "application/octet-stream",
-            sizeLabel: fileSizeLabel(file.size),
-            previewKind: previewKind(file.type),
-            pages: previewKind(file.type) === "pdf" ? 1 : undefined,
-          },
-          extracted: buildHappyPathExtraction(now),
-          resolvesActivityId: context?.resolvesActivityId,
-          // A pre-assigned employee makes the job skip the outcome machine
-          // and go through targeted assignment instead.
-          assignedEmployeeId: context?.target?.employeeId,
-          replacedDocumentId: context?.target?.replacesDocumentId,
-          createdAt: now.toISOString(),
-          updatedAt: now.toISOString(),
-        };
-
-        set((state) => ({
-          jobs: [job, ...state.jobs],
-          ui: { ...state.ui, composerOpen: false, composerContext: null },
-        }));
-      },
-
-      tickJobs: (now = new Date()) => {
-        const state = get();
-        if (state.jobsPaused) return;
-        const { jobs, employees, documents, activity } = state;
-        const processing = jobs.filter((job) =>
-          ["reading", "identifying", "extracting", "matching"].includes(
-            job.stage,
-          ),
-        );
-        const hasStale = jobs.some(
-          (job) =>
-            (job.stage === "completed" || job.stage === "failed") &&
-            now.getTime() - new Date(job.updatedAt).getTime() >= 2500,
-        );
-        if (processing.length === 0 && !hasStale) return;
-
-        let nextDocuments = documents;
-        let nextActivity = activity;
-        const nextRequests = state.requests;
-        let nextOutcomeState = state.nextOutcome;
-        let toast: string | null = state.lastToast;
-
-        const nextJobs = jobs.map((job) => {
-          if (
-            !["reading", "identifying", "extracting", "matching"].includes(
-              job.stage,
-            )
-          ) {
-            return job;
-          }
-          const elapsed = now.getTime() - new Date(job.updatedAt).getTime();
-          if (elapsed < STAGE_DURATION_MS) return job;
-          const upcoming = nextStage(job.stage);
-          if (!upcoming) return job;
-          if (upcoming !== "completed") {
-            return { ...job, stage: upcoming, updatedAt: now.toISOString() };
-          }
-
-          // Job finished its processing stages: apply the simulated outcome.
-          if (job.assignedEmployeeId) {
-            const result = applyTargetedAssignment({
-              employees,
-              documents: nextDocuments,
-              job,
-              target: {
-                employeeId: job.assignedEmployeeId,
-                replacesDocumentId: job.replacedDocumentId,
-              },
-              now,
-            });
-            nextDocuments = result.documents;
-            let items = result.activity;
-            if (job.sourceRequestId) {
-              const request = nextRequests.find(
-                (entry) => entry.id === job.sourceRequestId,
-              );
-              const employee = employees.find(
-                (entry) => entry.id === request?.employeeId,
-              );
-              items = items.map((item) => ({
-                ...item,
-                titleHe: employee
-                  ? `${employee.fullName} העלה מסמך חדש דרך קישור הבקשה`
-                  : item.titleHe,
-              }));
-            }
-            nextActivity = [...items, ...nextActivity].slice(0, 60);
-            toast = result.toastHe;
-            if (job.resolvesActivityId) {
-              nextActivity = resolveItem(nextActivity, job.resolvesActivityId);
-            }
-            return result.job;
-          }
-
-          const outcome = job.outcome ?? nextOutcomeState;
-          nextOutcomeState = "certain_match";
-          const result = applyUploadOutcome({
-            employees,
-            documents: nextDocuments,
-            job,
-            outcome,
-            now,
-          });
-          nextDocuments = result.documents;
-          nextActivity = [...result.activity, ...nextActivity].slice(0, 60);
-          toast = result.toastHe;
-          if (job.resolvesActivityId && result.job.stage === "completed") {
-            nextActivity = resolveItem(nextActivity, job.resolvesActivityId);
-          }
-          return result.job;
-        });
-
-        set({
-          jobs: nextJobs.filter((job) => {
-            if (job.stage === "completed" || job.stage === "failed") {
-              const age = now.getTime() - new Date(job.updatedAt).getTime();
-              return age < 2500;
-            }
-            return true;
-          }),
-          documents: nextDocuments,
-          activity: nextActivity,
-          requests: nextRequests,
-          nextOutcome: nextOutcomeState,
-          lastToast: toast,
-        });
-      },
-
-      addEmployee: (input) => {
-        const now = new Date();
-        const employee: Employee = {
-          id: newId("emp"),
-          fullName: input.fullName.trim(),
-          identityNumber: input.identityNumber.trim(),
-          profileImage: input.profileImage,
-          description: input.description?.trim() || undefined,
-          createdAt: now.toISOString(),
-        };
-        set((state) => ({
-          employees: [employee, ...state.employees],
-          lastToast: copy.formCreatedToast(employee.fullName),
-        }));
-        return employee;
-      },
-
-      updateEmployee: (id, patch) => {
-        set((state) => ({
-          employees: state.employees.map((employee) =>
-            employee.id === id
-              ? {
-                  ...employee,
-                  ...patch,
-                  fullName: patch.fullName?.trim() ?? employee.fullName,
-                  identityNumber:
-                    patch.identityNumber?.trim() ?? employee.identityNumber,
-                  description:
-                    patch.description !== undefined
-                      ? patch.description.trim() || undefined
-                      : employee.description,
-                }
-              : employee,
-          ),
-          lastToast: copy.formUpdatedToast,
-        }));
-      },
-
-      assignActivityToEmployee: (activityId, employeeId) => {
-        const now = new Date();
-        const state = get();
-        const item = state.activity.find((entry) => entry.id === activityId);
-        const job = state.jobs.find((entry) => entry.id === item?.jobId);
-        const employee = state.employees.find(
-          (entry) => entry.id === employeeId,
-        );
-        if (!item || !employee) return;
-
-        const extracted = job?.extracted;
-        const typeId = extracted?.typeId ?? "safety";
-        const document: DocumentRecord = {
-          id: newId("doc"),
-          employeeId: employee.id,
-          typeId,
-          title: extracted?.title ?? documentTypeLabels[typeId],
-          issuedOn: extracted?.issuedOn,
-          expiresOn: extracted?.expiresOn,
-          issuer: extracted?.issuer,
-          credentialNumber: extracted?.credentialNumber,
-          permissionsHe: extracted?.permissionsHe,
-          lifecycle: "active",
-          processingStatus: "ready",
-          fileMeta: job?.fileMeta ?? {
-            name: "document.jpg",
-            mime: "image/jpeg",
-            sizeLabel: "1.0 MB",
-            previewKind: "image",
-          },
-          warningDays: 30,
-          createdAt: now.toISOString(),
-        };
-
-        const update = stampActivity({
-          id: newId("act"),
-          type: "update",
-          titleHe: copy.assignedFeedTitle(document.title),
-          employeeId: employee.id,
-          documentId: document.id,
-          jobId: job?.id,
-          timestamp: now.toISOString(),
-          metadataHe: document.title,
-          openBehavior: "document_viewer",
-        });
-
-        set((current) => ({
-          documents: [...current.documents, document],
-          activity: [update, ...resolveItem(current.activity, activityId)],
-          jobs: completeJob(current.jobs, job?.id, now),
-          lastToast: copy.assignedToast(document.title, employee.fullName),
-        }));
-      },
-
-      createEmployeeFromActivity: (activityId, input) => {
-        const now = new Date();
-        const employee: Employee = {
-          id: newId("emp"),
-          fullName: input.fullName.trim(),
-          identityNumber: input.identityNumber.trim(),
-          profileImage: input.profileImage,
-          description: input.description?.trim() || undefined,
-          createdAt: now.toISOString(),
-        };
-        set((state) => ({ employees: [employee, ...state.employees] }));
-        get().assignActivityToEmployee(activityId, employee.id);
-        return employee;
-      },
-
-      confirmActivityField: (activityId, value) => {
-        const now = new Date();
-        const state = get();
-        const item = state.activity.find((entry) => entry.id === activityId);
-        if (!item?.documentId) return;
-        const fieldKey = item.fieldKey ?? "expiresOn";
-
-        set((current) => {
-          const documents = current.documents.map((document) => {
-            if (document.id !== item.documentId) return document;
-            const next = { ...document };
-            if (fieldKey === "expiresOn") next.expiresOn = value;
-            if (fieldKey === "identityNumber") {
-              // Identity lives on the employee; keep the document untouched.
-            }
-            next.lifecycle = "active";
-            next.processingStatus = "ready";
-            next.uncertainFieldKeys = undefined;
-            return next;
-          });
-          const target = documents.find(
-            (document) => document.id === item.documentId,
-          );
-          const update = stampActivity({
-            id: newId("act"),
-            type: "update",
-            titleHe: "הפרט אושר והמסמך סומן כפעיל",
-            employeeId: item.employeeId,
-            documentId: item.documentId,
-            timestamp: now.toISOString(),
-            metadataHe: target ? documentTypeLabels[target.typeId] : undefined,
-            openBehavior: "document_viewer",
-          });
-          return {
-            documents,
-            activity: [update, ...resolveItem(current.activity, activityId)],
-            jobs: completeJob(current.jobs, item.jobId, now),
-            lastToast: copy.sheetResolvedToast,
-          };
-        });
-      },
-
-      confirmDocumentField: (documentId, value) => {
-        const state = get();
-        const pending = state.activity.find(
-          (entry) =>
-            !entry.resolved &&
-            entry.documentId === documentId &&
-            entry.actionKind === "confirm_field",
-        );
-        if (pending) {
-          get().confirmActivityField(pending.id, value);
-          return;
-        }
-
-        const now = new Date();
-        const document = state.documents.find((entry) => entry.id === documentId);
-        if (!document) return;
-
-        set((current) => {
-          const documents = current.documents.map((entry) =>
-            entry.id === documentId
-              ? {
-                  ...entry,
-                  expiresOn: value,
-                  lifecycle: "active" as const,
-                  processingStatus: "ready" as const,
-                  uncertainFieldKeys: undefined,
-                }
-              : entry,
-          );
-          const update = stampActivity({
-            id: newId("act"),
-            type: "update",
-            titleHe: "הפרט אושר והמסמך סומן כפעיל",
-            employeeId: document.employeeId,
-            documentId,
-            timestamp: now.toISOString(),
-            metadataHe: documentTypeLabels[document.typeId],
-            openBehavior: "document_viewer",
-          });
-          return {
-            documents,
-            activity: [update, ...current.activity],
-            lastToast: copy.sheetResolvedToast,
-          };
-        });
-      },
-
-      decideReplacement: (activityId, decision) => {
-        const now = new Date();
-        const state = get();
-        const item = state.activity.find((entry) => entry.id === activityId);
-        if (!item?.pendingDocumentId) return;
-
-        set((current) => {
-          let documents = current.documents;
-          let titleHe = "";
-          if (decision === "replace") {
-            documents = documents.map((document) => {
-              if (document.id === item.documentId) {
-                return { ...document, lifecycle: "superseded" as const };
-              }
-              if (document.id === item.pendingDocumentId) {
-                return {
-                  ...document,
-                  lifecycle: "active" as const,
-                  processingStatus: "ready" as const,
-                  uncertainFieldKeys: undefined,
-                };
-              }
-              return document;
-            });
-            titleHe = copy.replacedFeedTitle;
-          } else if (decision === "keep_both") {
-            documents = documents.map((document) =>
-              document.id === item.pendingDocumentId
-                ? {
-                    ...document,
-                    lifecycle: "active" as const,
-                    processingStatus: "ready" as const,
-                    uncertainFieldKeys: undefined,
-                  }
-                : document,
-            );
-            titleHe = "שני המסמכים נשארו פעילים";
-          } else {
-            documents = documents.filter(
-              (document) => document.id !== item.pendingDocumentId,
-            );
-            titleHe = "המסמך הכפול לא נשמר";
-          }
-
-          const update = stampActivity({
-            id: newId("act"),
-            type: "update",
-            titleHe,
-            employeeId: item.employeeId,
-            documentId:
-              decision === "discard" ? item.documentId : item.pendingDocumentId,
-            timestamp: now.toISOString(),
-            metadataHe: item.metadataHe,
-            openBehavior: "document_viewer",
-          });
-
-          return {
-            documents,
-            activity: [update, ...resolveItem(current.activity, activityId)],
-            jobs: completeJob(current.jobs, item.jobId, now),
-            lastToast: copy.sheetResolvedToast,
-          };
-        });
-      },
-
-      resolveActivity: (activityId) => {
-        set((state) => ({
-          activity: resolveItem(state.activity, activityId),
-        }));
-      },
-
-      createShare: (input) => {
-        const now = new Date();
-        const share: ShareLink = {
-          id: newId("share"),
-          token: makeToken("s"),
-          employeeIds: input.employeeIds,
-          documentIds: input.documentIds,
-          createdAt: now.toISOString(),
-          expiresAt: isoDaysFrom(now, 7),
-          status: "active",
-        };
-        set((state) => ({ shares: [share, ...state.shares] }));
-        return share;
-      },
-
       createDocumentRequest: (input) => {
+        const title = input.title.trim();
+        const recipientName = input.recipientName.trim();
+        const labels = input.documents.map((doc) => doc.label.trim()).filter(Boolean);
+        if (!title || !recipientName) return { error: "missing_fields" };
+        if (!input.phone?.trim() && !input.email?.trim()) return { error: "missing_contact" };
+        if (labels.length === 0) return { error: "missing_slots" };
         const now = new Date();
-        const state = get();
-        const employee = state.employees.find(
-          (entry) => entry.id === input.employeeId,
-        );
-        const replaced = state.documents.find(
-          (entry) => entry.id === input.replacesDocumentId,
-        );
+        const parsedExpiry = input.expiresAt ? new Date(input.expiresAt) : undefined;
+        if (parsedExpiry && Number.isNaN(parsedExpiry.getTime())) return { error: "invalid_expiry" };
+        if (parsedExpiry && parsedExpiry.getTime() <= now.getTime()) return { error: "invalid_expiry" };
+        const expiresAt = parsedExpiry?.toISOString() ?? addDays(now, 14).toISOString();
+        const id = newId("req");
         const token = makeToken("r");
-        const documentTitle = replaced
-          ? documentTypeLabels[replaced.typeId]
-          : input.documentType
-            ? documentTypeLabels[input.documentType]
-            : "האישור";
-        const expired = replaced?.expiresOn
-          ? new Date(`${replaced.expiresOn}T12:00:00`).getTime() < now.getTime()
-          : false;
-        const request: DocumentRequest = {
-          id: newId("req"),
+        const requestedDocuments = labels.map((label, index) => ({
+          id: `slot-${id}-${index + 1}`,
+          requestId: id,
+          label,
+          instructions: input.documents[index]?.instructions,
+          sortOrder: index,
+        }));
+        const created: DocumentRequest = {
+          id,
+          title,
+          recipient: {
+            name: recipientName,
+            phone: input.phone?.trim() || undefined,
+            email: input.email?.trim() || undefined,
+          },
+          requestedDocuments,
+          expiresAt,
+          status: "active",
           token,
-          employeeId: input.employeeId,
-          documentType: input.documentType ?? replaced?.typeId,
-          replacesDocumentId: input.replacesDocumentId,
-          messageHe: buildRenewMessageHe({
-            employeeName: employee?.fullName ?? "",
-            documentTitle,
-            url: publicRequestUrl(token),
-            expired,
-          }),
           createdAt: now.toISOString(),
-          expiresAt: isoDaysFrom(now, 14),
-          status: "created",
+          messageHe: buildRequestMessageHe({
+            title,
+            recipientName,
+            documents: requestedDocuments,
+            url: publicRequestUrl(token) || `/r/${token}`,
+          }),
         };
-        set((current) => ({
-          requests: [request, ...current.requests],
+        const activity = projectRequestActivity({
+          id: `act-${id}`,
+          request: created,
+          kind: "created",
+          now,
+        });
+        set((state) => ({
+          requests: [created, ...state.requests],
+          activity: [activity, ...state.activity],
           lastToast: copy.requestCreatedToast,
         }));
-        return request;
+        return created;
+      },
+
+      markRequestOpened: (token) => {
+        const now = new Date();
+        set((state) => {
+          const request = state.requests.find((entry) => entry.token === token);
+          if (!request || request.openedAt || request.status !== "active") return state;
+          const next = { ...request, openedAt: now.toISOString() };
+          return {
+            requests: state.requests.map((entry) => (entry.id === next.id ? next : entry)),
+            activity: [
+              projectRequestActivity({
+                id: `act-${next.id}-opened`,
+                request: next,
+                kind: "opened",
+                now,
+              }),
+              ...state.activity,
+            ],
+          };
+        });
+      },
+
+      closeRequest: (requestId) => {
+        const now = new Date();
+        set((state) => {
+          const request = state.requests.find((entry) => entry.id === requestId);
+          if (!request || request.status !== "active") return state;
+          const next = { ...request, status: "closed" as const, closedAt: now.toISOString() };
+          return {
+            requests: state.requests.map((entry) => (entry.id === requestId ? next : entry)),
+            activity: [
+              projectRequestActivity({
+                id: `act-${requestId}-closed`,
+                request: next,
+                kind: "closed",
+                now,
+              }),
+              ...state.activity,
+            ],
+            lastToast: copy.requestClosedToast,
+          };
+        });
+      },
+
+      reopenRequest: (requestId) => {
+        const now = new Date();
+        set((state) => {
+          const request = state.requests.find((entry) => entry.id === requestId);
+          if (!request) return state;
+          const next = reopenRequest(request, now);
+          if ("error" in next) {
+            return { lastToast: copy.requestReopenBlocked };
+          }
+          return {
+            requests: state.requests.map((entry) => (entry.id === requestId ? next : entry)),
+            lastToast: copy.requestReopenedToast,
+          };
+        });
+      },
+
+      revokeRequest: (requestId) => {
+        const now = new Date();
+        set((state) => ({
+          requests: state.requests.map((entry) =>
+            entry.id === requestId
+              ? { ...entry, status: "revoked" as const, revokedAt: now.toISOString() }
+              : entry,
+          ),
+          lastToast: copy.requestRevokedToast,
+        }));
+      },
+
+      extendRequestExpiry: (requestId, expiresAt) => {
+        const now = new Date();
+        set((state) => {
+          const request = state.requests.find((entry) => entry.id === requestId);
+          if (!request) return state;
+          const next = extendRequestExpiry(request, expiresAt, now);
+          if ("error" in next) return { lastToast: copy.requestExtendBlocked };
+          return {
+            requests: state.requests.map((entry) => (entry.id === requestId ? next : entry)),
+            lastToast: copy.requestExtendedToast,
+          };
+        });
       },
 
       updateRequestMessage: (requestId, messageHe) => {
         set((state) => ({
-          requests: state.requests.map((request) =>
-            request.id === requestId ? { ...request, messageHe } : request,
+          requests: state.requests.map((entry) =>
+            entry.id === requestId ? { ...entry, messageHe } : entry,
           ),
         }));
       },
 
-      markRequestSent: (requestId, activityId) => {
-        const now = new Date();
+      startWorkerDraft: (input) => {
         const state = get();
-        const request = state.requests.find((entry) => entry.id === requestId);
-        const employee = state.employees.find(
-          (entry) => entry.id === request?.employeeId,
-        );
-        const update = stampActivity({
-          id: newId("act"),
-          type: "update",
-          titleHe: copy.requestSentFeedTitle(employee?.fullName ?? "העובד"),
-          employeeId: request?.employeeId,
-          requestId,
-          timestamp: now.toISOString(),
-          metadataHe: request?.documentType
-            ? documentTypeLabels[request.documentType]
-            : undefined,
-          openBehavior: request?.employeeId ? "employee_details" : "none",
+        const request = state.requests.find((entry) => entry.id === input.requestId);
+        if (!request) {
+          throw new Error("request_not_found");
+        }
+        const worker: RequestWorkerSubmission = {
+          id: newId("wsub"),
+          requestId: request.id,
+          submittedFullName: input.submittedFullName.trim(),
+          submittedIdentityNumber: input.submittedIdentityNumber?.trim() || undefined,
+          status: "draft",
+        };
+        const docs: RequestDocumentSubmission[] = request.requestedDocuments.map((slot) => ({
+          id: newId("dsub"),
+          requestId: request.id,
+          workerSubmissionId: worker.id,
+          requestedDocumentId: slot.id,
+          status: "missing",
+        }));
+        set({
+          workerSubmissions: [worker, ...state.workerSubmissions],
+          documentSubmissions: [...docs, ...state.documentSubmissions],
         });
-        set((current) => ({
-          activity: [
-            update,
-            ...(activityId
-              ? resolveItem(current.activity, activityId)
-              : current.activity),
-          ],
-        }));
+        return worker;
       },
 
-      markRequestOpened: (token) => {
-        set((state) => ({
-          requests: state.requests.map((request) =>
-            request.token === token && request.status === "created"
-              ? { ...request, status: "opened" as const }
-              : request,
-          ),
-        }));
+      attachSlotFile: (input) => {
+        get().enqueueUpload(
+          input.file,
+          {
+            slot: {
+              requestId:
+                get().workerSubmissions.find((entry) => entry.id === input.workerSubmissionId)
+                  ?.requestId ?? "",
+              workerSubmissionId: input.workerSubmissionId,
+              requestedDocumentId: input.requestedDocumentId,
+            },
+          },
+        );
       },
 
-      submitRequestUpload: (token, file) => {
+      submitWorker: (workerSubmissionId) => {
         const now = new Date();
-        const state = get();
-        const request = state.requests.find((entry) => entry.token === token);
-        if (!request) return;
+        set((state) => {
+          const worker = state.workerSubmissions.find((entry) => entry.id === workerSubmissionId);
+          if (!worker || isSubmittedWorker(worker)) return state;
+          const activityId = `act-${worker.id}`;
+          const nextWorker: RequestWorkerSubmission = {
+            ...worker,
+            status: "processing",
+            submittedAt: now.toISOString(),
+            activityId,
+          };
+          let world = worldFrom({
+            ...state,
+            workerSubmissions: state.workerSubmissions.map((entry) =>
+              entry.id === worker.id ? nextWorker : entry,
+            ),
+          });
+          if (!world.cases.some((entry) => entry.workerSubmissionId === worker.id && !entry.documentSubmissionId)) {
+            world = {
+              ...world,
+              cases: [createWorkerCase({ worker: nextWorker, now }), ...world.cases],
+            };
+          }
+          world = evaluateWorker(world, worker.id, now);
+          return { ...applyWorld(world), lastToast: copy.workerSubmittedToast };
+        });
+      },
 
-        const job: UploadJob = {
-          id: newId("job"),
-          stage: "reading",
+      uploadFileForSlot: (input) => {
+        get().enqueueUpload(input.file, {
+          slot: {
+            requestId:
+              get().workerSubmissions.find((entry) => entry.id === input.workerSubmissionId)
+                ?.requestId ?? "",
+            workerSubmissionId: input.workerSubmissionId,
+            requestedDocumentId: input.requestedDocumentId,
+          },
+        });
+      },
+
+      enqueueUpload: (file, options) => {
+        const now = new Date();
+        const slot = options?.slot ?? get().ui.composerContext?.slot;
+        if (!slot) return;
+        const worker = get().workerSubmissions.find((entry) => entry.id === slot.workerSubmissionId);
+        const document = get().documentSubmissions.find(
+          (entry) =>
+            entry.workerSubmissionId === slot.workerSubmissionId &&
+            entry.requestedDocumentId === slot.requestedDocumentId,
+        );
+        if (!worker || !document) return;
+        const jobId = newId("job");
+        const sourceFile: SourceFile = {
+          id: `file-${jobId}`,
           fileMeta: {
             name: file.name,
-            mime: file.type || "application/octet-stream",
+            mime: file.type || "image/jpeg",
             sizeLabel: fileSizeLabel(file.size),
             previewKind: previewKind(file.type),
           },
-          assignedEmployeeId: request.employeeId,
-          replacedDocumentId: request.replacesDocumentId,
-          sourceRequestId: request.id,
+          uploadedAt: now.toISOString(),
+        };
+        const job: UploadJob = {
+          id: jobId,
+          stage: "reading",
+          scenario: get().nextOutcome,
+          fileMeta: sourceFile.fileMeta,
+          requestId: slot.requestId,
+          workerSubmissionId: slot.workerSubmissionId,
+          documentSubmissionId: document.id,
+          requestedDocumentId: slot.requestedDocumentId,
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
         };
-
-        set((current) => ({
-          requests: current.requests.map((entry) =>
-            entry.id === request.id
-              ? { ...entry, status: "uploaded" as const }
-              : entry,
+        const wasApproved = worker.status === "approved" || worker.status === "complete";
+        const nextWorker: RequestWorkerSubmission = {
+          ...worker,
+          status: wasApproved || worker.submittedAt ? "processing" : worker.status === "draft" ? "uploading" : "processing",
+          approvedAt: wasApproved ? undefined : worker.approvedAt,
+        };
+        const nextDoc: RequestDocumentSubmission = {
+          ...document,
+          sourceFileId: sourceFile.id,
+          status: "uploaded",
+          uploadedAt: now.toISOString(),
+        };
+        const investigating = createInvestigatingCase({
+          job,
+          sourceFile,
+          worker: { ...nextWorker, activityId: nextWorker.activityId },
+          document: nextDoc,
+          now,
+          nextTransitionAt: new Date(now.getTime() + STAGE_DURATION_MS).toISOString(),
+        });
+        set((state) => ({
+          jobs: [job, ...state.jobs],
+          sourceFiles: [sourceFile, ...state.sourceFiles],
+          workerSubmissions: state.workerSubmissions.map((entry) =>
+            entry.id === worker.id ? nextWorker : entry,
           ),
-          jobs: [job, ...current.jobs],
+          documentSubmissions: state.documentSubmissions.map((entry) =>
+            entry.id === document.id ? { ...nextDoc, resolutionCaseId: investigating.id } : entry,
+          ),
+          cases: [investigating, ...state.cases.filter((entry) => entry.id !== investigating.id)],
+          ui: { ...state.ui, composerOpen: false, composerContext: null },
         }));
+      },
+
+      tickJobs: (nowInput) => {
+        const now = nowInput ?? new Date();
+        const state = get();
+        if (state.jobsPaused) return;
+        let world = worldFrom(state);
+        world = {
+          ...world,
+          requests: applyExpiryToRequests(world.requests, now),
+        };
+        let changed = false;
+        for (const job of world.jobs) {
+          if (!["reading", "identifying", "extracting", "matching"].includes(job.stage)) continue;
+          const elapsed = now.getTime() - new Date(job.updatedAt).getTime();
+          if (elapsed < STAGE_DURATION_MS) continue;
+          const next = nextStage(job.stage);
+          if (!next) continue;
+          changed = true;
+          if (next === "completed") {
+            const resolution = world.cases.find((entry) => entry.jobId === job.id);
+            const worker = world.workerSubmissions.find((entry) => entry.id === job.workerSubmissionId);
+            const request = world.requests.find((entry) => entry.id === job.requestId);
+            const slot = request?.requestedDocuments.find((entry) => entry.id === job.requestedDocumentId);
+            if (resolution && worker) {
+              world = applyExtraction(
+                world,
+                resolution.id,
+                extractionForUploadScenario(
+                  job.scenario ?? state.nextOutcome,
+                  now,
+                  slot?.label ?? "",
+                  worker.submittedFullName,
+                ),
+                now,
+              );
+            }
+            world = {
+              ...world,
+              jobs: world.jobs.map((entry) =>
+                entry.id === job.id
+                  ? { ...entry, stage: "completed", updatedAt: now.toISOString() }
+                  : entry,
+              ),
+            };
+          } else {
+            world = {
+              ...world,
+              jobs: world.jobs.map((entry) =>
+                entry.id === job.id ? { ...entry, stage: next, updatedAt: now.toISOString() } : entry,
+              ),
+            };
+          }
+        }
+        if (changed || world.requests !== state.requests) {
+          set(applyWorld(world));
+        }
+      },
+
+      answerCase: (caseId, answer) => {
+        const now = new Date();
+        const result = applyAnswer(worldFrom(get()), caseId, answer, now);
+        set({ ...applyWorld(result.world), lastToast: result.error ? copy.answerError : null });
+      },
+
+      approveWorker: (workerSubmissionId) => {
+        const now = new Date();
+        set((state) => {
+          const worker = state.workerSubmissions.find((entry) => entry.id === workerSubmissionId);
+          if (!worker || worker.status !== "complete") return state;
+          const caseId = state.cases.find(
+            (entry) => entry.workerSubmissionId === worker.id && !entry.documentSubmissionId,
+          )?.id;
+          if (caseId) {
+            const result = applyAnswer(worldFrom(state), caseId, { type: "approve_worker" }, now);
+            return { ...applyWorld(result.world), lastToast: copy.workerApprovedToast };
+          }
+          const next = {
+            ...worker,
+            status: "approved" as const,
+            approvedAt: now.toISOString(),
+            reviewedAt: now.toISOString(),
+          };
+          return {
+            workerSubmissions: state.workerSubmissions.map((entry) =>
+              entry.id === worker.id ? next : entry,
+            ),
+            lastToast: copy.workerApprovedToast,
+          };
+        });
+      },
+
+      createReuploadLink: (input) => {
+        const now = new Date();
+        const state = get();
+        const worker = state.workerSubmissions.find((entry) => entry.id === input.workerSubmissionId);
+        const request = state.requests.find((entry) => entry.id === worker?.requestId);
+        const slot = request?.requestedDocuments.find((entry) => entry.id === input.requestedDocumentId);
+        if (!worker || !request || !slot) return null;
+        const token = makeToken("u");
+        const link: RequestReuploadLink = {
+          id: newId("ulink"),
+          token,
+          requestId: request.id,
+          workerSubmissionId: worker.id,
+          requestedDocumentId: slot.id,
+          expiresAt: request.expiresAt,
+        };
+        set({
+          reuploadLinks: [
+            link,
+            ...state.reuploadLinks.map((entry) =>
+              entry.workerSubmissionId === worker.id &&
+              entry.requestedDocumentId === slot.id &&
+              !entry.revokedAt &&
+              !entry.resolvedAt
+                ? { ...entry, revokedAt: now.toISOString() }
+                : entry,
+            ),
+          ],
+          lastToast: copy.reuploadReadyToast,
+        });
+        return link;
+      },
+
+      submitReupload: (token, file) => {
+        const state = get();
+        const link = state.reuploadLinks.find((entry) => entry.token === token);
+        const request = state.requests.find((entry) => entry.id === link?.requestId);
+        if (!link || !request || !isReuploadLinkOpen(link, request)) return;
+        get().enqueueUpload(file, {
+          slot: {
+            requestId: link.requestId,
+            workerSubmissionId: link.workerSubmissionId,
+            requestedDocumentId: link.requestedDocumentId,
+          },
+        });
       },
 
       setNextOutcome: (outcome) => set({ nextOutcome: outcome }),
       setJobsPaused: (paused) => set({ jobsPaused: paused }),
-
       completeActiveJobs: () => {
-        const now = new Date();
-        const state = get();
-        // Fast-forward: mark every processing job as due, then tick until done.
-        set({
-          jobs: state.jobs.map((job) =>
-            ["reading", "identifying", "extracting", "matching"].includes(
-              job.stage,
-            )
-              ? {
-                  ...job,
-                  stage: "matching" as const,
-                  updatedAt: new Date(
-                    now.getTime() - STAGE_DURATION_MS - 50,
-                  ).toISOString(),
-                }
-              : job,
-          ),
-          jobsPaused: false,
-        });
-        get().tickJobs(now);
+        const future = new Date(Date.now() + STAGE_DURATION_MS * 8);
+        get().tickJobs(future);
+        get().tickJobs(new Date(future.getTime() + STAGE_DURATION_MS * 8));
       },
-
-      setDemoForce: (value) => set({ demoForce: value }),
-
+      setDemoForce: (demoForce) => set({ demoForce }),
       resetMockData: () => {
-        const fresh = createSeed();
+        const seed = createRequestSeed(new Date());
         set({
-          seedAnchor: fresh.generatedAt,
-          employees: fresh.employees,
-          documents: fresh.documents,
-          activity: fresh.activity,
-          jobs: fresh.jobs,
-          shares: [],
-          requests: [],
+          ...applyWorld(seed),
+          seedAnchor: seed.seedAnchor,
           nextOutcome: "certain_match",
           jobsPaused: false,
-          demoForce: null,
+          qaDatasetActive: false,
           lastToast: copy.demoResetDone,
         });
       },
-
-      addDemoDocument: (kind) => {
-        const now = new Date();
-        const state = get();
-        const employee =
-          state.employees.find((entry) => entry.id === "emp-roi") ??
-          state.employees[0];
-        if (!employee) return;
-        const expiresOn =
-          kind === "expiring" ? isoDaysFrom(now, 10) : isoDaysFrom(now, -3);
-        const document: DocumentRecord = {
-          id: newId("doc"),
-          employeeId: employee.id,
-          typeId: "safety",
-          title: documentTypeLabels.safety,
-          issuedOn: isoDaysFrom(now, -300),
-          expiresOn,
-          issuer: "קצין הבטיחות באתר",
-          credentialNumber: `SF-${now.getTime().toString().slice(-4)}`,
-          lifecycle: "active",
-          processingStatus: "ready",
-          fileMeta: {
-            name: "demo-safety.jpg",
-            mime: "image/jpeg",
-            sizeLabel: "1.0 MB",
-            previewKind: "image",
-            pages: 1,
-          },
-          warningDays: 30,
-          createdAt: now.toISOString(),
-        };
-        const alert = stampActivity({
-          id: newId("act"),
-          type: "alert",
-          titleHe:
-            kind === "expiring"
-              ? `הדרכת הבטיחות של ${employee.fullName} תפוג בעוד 10 ימים`
-              : `הדרכת הבטיחות של ${employee.fullName} פגה לפני 3 ימים`,
-          employeeId: employee.id,
-          documentId: document.id,
-          timestamp: now.toISOString(),
-          openBehavior: "document_viewer",
+      loadEdgeCaseQaDataset: () => {
+        const dataset = createRequestQaDataset(new Date());
+        set({
+          ...applyWorld(dataset),
+          seedAnchor: dataset.generatedAt,
+          nextOutcome: "certain_match",
+          jobsPaused: true,
+          qaDatasetActive: true,
+          lastToast: copy.demoQaLoaded,
         });
-        set((current) => ({
-          documents: [...current.documents, document],
-          activity: [alert, ...current.activity],
-        }));
       },
-
-      triggerDemoAction: (kind) => {
-        const now = new Date();
-        const state = get();
-
-        const outcome = OUTCOME_FOR_ACTION[kind];
-        if (!outcome) return;
-        const job: UploadJob = {
-          id: newId("job"),
-          stage: "matching",
-          fileMeta: {
-            name: "demo-upload.jpg",
-            mime: "image/jpeg",
-            sizeLabel: "1.4 MB",
-            previewKind: "image",
-            pages: 1,
-          },
-          createdAt: now.toISOString(),
-          updatedAt: now.toISOString(),
-        };
-        const result = applyUploadOutcome({
-          employees: state.employees,
-          documents: state.documents,
-          job,
-          outcome,
-          now,
-        });
-        set((current) => ({
-          documents: result.documents,
-          activity: [...result.activity, ...current.activity].slice(0, 60),
-          jobs:
-            result.job.stage === "action_required"
-              ? [result.job, ...current.jobs]
-              : current.jobs,
-          lastToast: result.toastHe,
-        }));
+      resetEdgeCaseQaDataset: () => {
+        get().loadEdgeCaseQaDataset();
+        set({ lastToast: copy.demoQaResetDone });
       },
-
-      createDemoShare: (expired = false) => {
-        const now = new Date();
-        const state = get();
-        const employeeIds = ["emp-yosef", "emp-natan"].filter((id) =>
-          state.employees.some((employee) => employee.id === id),
-        );
-        const documentIds = state.documents
-          .filter(
-            (document) =>
-              employeeIds.includes(document.employeeId) &&
-              document.lifecycle === "active",
-          )
-          .map((document) => document.id);
-        const share: ShareLink = {
-          id: newId("share"),
-          token: makeToken("s"),
-          employeeIds,
-          documentIds,
-          createdAt: now.toISOString(),
-          expiresAt: expired ? isoDaysFrom(now, -1) : isoDaysFrom(now, 7),
-          status: expired ? "expired" : "active",
-        };
-        set((current) => ({ shares: [share, ...current.shares] }));
-        return share;
-      },
-
-      createDemoRequest: () => {
-        const state = get();
-        const expiredDoc = state.documents.find(
-          (document) =>
-            document.lifecycle === "active" &&
-            document.expiresOn &&
-            new Date(`${document.expiresOn}T12:00:00`).getTime() < Date.now(),
-        );
-        if (!expiredDoc) return null;
-        return get().createDocumentRequest({
-          employeeId: expiredDoc.employeeId,
-          replacesDocumentId: expiredDoc.id,
-        });
+      restoreRegularDemoSeed: () => {
+        get().resetMockData();
+        set({ lastToast: copy.demoQaRestored });
       },
     }),
     {
       name: "certify-p0",
       version: APP_STORE_VERSION,
       migrate: () => {
-        const next = createSeed();
+        const next = createRequestSeed(new Date());
         return {
-          seedAnchor: next.generatedAt,
-          employees: next.employees,
-          documents: next.documents,
-          activity: next.activity,
-          jobs: next.jobs,
-          shares: [],
-          requests: [],
-          nextOutcome: "certain_match" as const,
+          ...applyWorld(next),
+          seedAnchor: next.seedAnchor,
+          nextOutcome: "certain_match" as DemoScenarioId,
+          jobsPaused: false,
+          qaDatasetActive: false,
         };
       },
       skipHydration: true,
+      onRehydrateStorage: () => () => {
+        useAppStore.getState().hydrate();
+      },
       partialize: (state) => ({
         seedAnchor: state.seedAnchor,
-        employees: state.employees,
-        documents: state.documents,
+        requests: state.requests,
+        workerSubmissions: state.workerSubmissions,
+        documentSubmissions: state.documentSubmissions,
+        reuploadLinks: state.reuploadLinks,
         activity: state.activity,
         jobs: state.jobs,
-        shares: state.shares,
-        requests: state.requests,
+        cases: state.cases,
+        sourceFiles: state.sourceFiles,
+        undoLog: state.undoLog,
         nextOutcome: state.nextOutcome,
+        jobsPaused: state.jobsPaused,
+        qaDatasetActive: state.qaDatasetActive,
       }),
     },
   ),
@@ -968,4 +803,22 @@ export function selectActiveJobs(jobs: UploadJob[]) {
 
 export function selectPendingJobs(jobs: UploadJob[]) {
   return jobs.filter((job) => job.stage === "action_required");
+}
+
+export function canReopenStoredRequest(request: DocumentRequest, now = new Date()) {
+  return canReopenRequest(request, now);
+}
+
+export function reuploadMessage(input: {
+  recipientName: string;
+  workerName: string;
+  slotLabel: string;
+  token: string;
+}) {
+  return buildReuploadMessageHe({
+    recipientName: input.recipientName,
+    workerName: input.workerName,
+    slotLabel: input.slotLabel,
+    url: publicReuploadUrl(input.token) || `/u/${input.token}`,
+  });
 }

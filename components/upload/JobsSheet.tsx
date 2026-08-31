@@ -20,23 +20,19 @@ export function JobsSheet() {
   const jobs = useAppStore((state) => state.jobs);
   const focusedJobId = useAppStore((state) => state.ui.focusedJobId);
   const activityItems = useAppStore((state) => state.activity);
-  const employees = useAppStore((state) => state.employees);
   const activeJobs = selectActiveJobs(jobs);
   const pendingJobs = selectPendingJobs(jobs);
   const isDesktop = useIsDesktop();
   const feedActivity = activityForJob(activityItems, focusedJobId);
-  const employee = employees.find(
-    (entry) => entry.id === feedActivity?.employeeId,
-  );
-  const extractedName = feedActivity?.jobId
-    ? jobs.find((job) => job.id === feedActivity.jobId)?.extracted?.fullName
-    : undefined;
+  const cases = useAppStore((state) => state.cases);
+  const extractedName =
+    cases.find((entry) => entry.jobId === focusedJobId)?.extraction.fields
+      .fullName ??
+    (feedActivity?.jobId
+      ? jobs.find((job) => job.id === feedActivity.jobId)?.extracted?.fullName
+      : undefined);
   const header = feedActivity ? (
-    <ActivitySheetHeader
-      item={feedActivity}
-      employee={employee}
-      employeeName={extractedName}
-    />
+    <ActivitySheetHeader item={feedActivity} personName={extractedName} />
   ) : undefined;
 
   const body = (

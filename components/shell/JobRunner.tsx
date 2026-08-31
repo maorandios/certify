@@ -8,11 +8,13 @@ export function JobRunner() {
   const tickJobs = useAppStore((state) => state.tickJobs);
   const lastToast = useAppStore((state) => state.lastToast);
   const consumeToast = useAppStore((state) => state.consumeToast);
+  const hasHydrated = useAppStore((state) => state.hasHydrated);
 
   useEffect(() => {
+    if (!hasHydrated) return;
     const id = window.setInterval(() => tickJobs(), 250);
     return () => window.clearInterval(id);
-  }, [tickJobs]);
+  }, [tickJobs, hasHydrated]);
 
   useEffect(() => {
     if (!lastToast) return;

@@ -1,133 +1,84 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { resolveActivityOpen } from "@/lib/activityOpen";
 import { useAppStore } from "@/lib/store";
-import type {
-  ActivityItem,
-  DocumentRecord,
-  Employee,
-} from "@/lib/types";
+import type { ActivityItem, SourceFile } from "@/lib/types";
 import { DocumentViewer } from "@/components/documents/DocumentViewer";
-import { EmployeeFormSheet } from "@/components/employees/EmployeeFormSheet";
 import { ActivityCard } from "./ActivityCard";
-import { ActivityResultList } from "./ActivityResultList";
-import { DecisionActionSheet } from "./DecisionActionSheet";
+import { AgenticActionSheet } from "./AgenticActionSheet";
+import { CaseCard } from "./CaseCard";
 
 type ActivityFeedProps = {
   items: ActivityItem[];
-  employees: Employee[];
-  documents: DocumentRecord[];
 };
 
-export function ActivityFeed({
-  items,
-  employees,
-  documents,
-}: ActivityFeedProps) {
-  const router = useRouter();
-  const jobs = useAppStore((state) => state.jobs);
-  const openComposer = useAppStore((state) => state.openComposer);
-  const openJobsSheet = useAppStore((state) => state.openJobsSheet);
+type ViewerTarget = {
+  document?: { title?: string } | null;
+  sourceFile?: SourceFile | null;
+};
 
-  const [decisionItem, setDecisionItem] = useState<ActivityItem | null>(null);
-  const [viewerDoc, setViewerDoc] = useState<DocumentRecord | null>(null);
-  const [resultItem, setResultItem] = useState<ActivityItem | null>(null);
-  const [createItem, setCreateItem] = useState<ActivityItem | null>(null);
+export function ActivityFeed({ items }: ActivityFeedProps) {
+  const jobs = useAppStore((state) => state.jobs);
+  const cases = useAppStore((state) => state.cases);
+  const sourceFiles = useAppStore((state) => state.sourceFiles);
+  const requests = useAppStore((state) => state.requests);
+  const workerSubmissions = useAppStore((state) => state.workerSubmissions);
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<ViewerTarget>({});
 
   const openContext = useMemo(
-    () => ({ employees, documents, jobs }),
-    [employees, documents, jobs],
+    () => ({ requests, workerSubmissions, jobs, cases, sourceFiles }),
+    [requests, workerSubmissions, jobs, cases, sourceFiles],
   );
+
+  const activeItem = items.find((entry) => entry.id === activeId) ?? null;
 
   function openItem(item: ActivityItem) {
     const intent = resolveActivityOpen(item, openContext);
-    switch (intent.type) {
-      case "action_sheet":
-        setDecisionItem(item);
-        return;
-      case "document_viewer": {
-        const document = documents.find(
-          (entry) => entry.id === intent.documentId,
-        );
-        if (document) setViewerDoc(document);
-        return;
-      }
-      case "employee_details":
-        router.push(`/employees/${intent.employeeId}`);
-        return;
-      case "jobs_sheet":
-        openJobsSheet(intent.jobId);
-        return;
-      case "result_list":
-        setResultItem(item);
-        return;
-      case "create_employee":
-        setCreateItem(item);
-        return;
-      case "replace_file":
-        openComposer({
-          resolvesActivityId: item.id,
-          target: item.employeeId
-            ? { employeeId: item.employeeId }
-            : undefined,
-        });
-        return;
-      case "none":
-        return;
-    }
+    if (intent.type === "agentic_sheet") setActiveId(item.id);
   }
 
-  const createJob = jobs.find((job) => job.id === createItem?.jobId);
-  const createPrefill = createJob?.extracted
-    ? {
-        fullName: createJob.extracted.fullName,
-        identityNumber: createJob.extracted.identityNumber.replace(/\D/g, ""),
-      }
-    : undefined;
-
   if (items.length === 0) {
-    return (
-      <p className="py-6 text-sm text-stone-500">אין פעילות עדיין.</p>
-    );
+    return <p className="py-6 text-sm text-stone-500">אין פעילות עדיין.</p>;
   }
 
   return (
     <>
       <ol className="m-0 list-none p-0">
-        {items.map((item, index) => (
-          <ActivityCard
-            key={item.id}
-            item={item}
-            employees={employees}
-            openContext={openContext}
-            isLast={index === items.length - 1}
-            onPostPress={openItem}
-          />
-        ))}
+        {items.map((item, index) => {
+          const resolution = cases.find((entry) => entry.workerSubmissionId === item.workerSubmissionId);
+          const isLast = index === items.length - 1;
+          if (resolution) {
+            return (
+              <CaseCard
+                key={item.id}
+                item={item}
+                isLast={isLast}
+                onPostPress={openItem}
+              />
+            );
+          }
+          return (
+            <ActivityCard
+              key={item.id}
+              item={item}
+              isLast={isLast}
+              onPostPress={openItem}
+            />
+          );
+        })}
       </ol>
-      <DecisionActionSheet
-        item={decisionItem}
-        onClose={() => setDecisionItem(null)}
-      />
-      <ActivityResultList
-        item={resultItem}
-        onClose={() => setResultItem(null)}
-        onSelect={setViewerDoc}
+      <AgenticActionSheet
+        item={activeItem}
+        onClose={() => setActiveId(null)}
+        onViewDocument={setViewer}
       />
       <DocumentViewer
-        document={viewerDoc}
-        onClose={() => setViewerDoc(null)}
-      />
-      <EmployeeFormSheet
-        open={createItem != null}
-        onClose={() => setCreateItem(null)}
-        mode="create"
-        prefill={createPrefill}
-        activityId={createItem?.id}
-        activity={createItem ?? undefined}
-        onSaved={() => setCreateItem(null)}
+        document={viewer.document ?? null}
+        sourceFile={viewer.sourceFile ?? null}
+        onClose={() => setViewer({})}
       />
     </>
   );

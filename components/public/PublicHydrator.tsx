@@ -2,35 +2,17 @@
 
 import { useEffect, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { useAppStore } from "@/lib/store";
+import { bootPersistedStore, useAppStore } from "@/lib/store";
 
 /**
- * Public routes (/s/[token], /r/[token]) render outside the app shell, so
+ * Public routes (/r/[token], /u/[token]) render outside the app shell, so
  * they rehydrate the persisted mock store themselves before showing content.
  */
 export function PublicHydrator({ children }: { children: ReactNode }) {
-  const hydrated = useAppStore((state) => state.ui.hydrated);
+  const hydrated = useAppStore((state) => state.hasHydrated);
   const hydrate = useAppStore((state) => state.hydrate);
 
-  useEffect(() => {
-    let cancelled = false;
-    const finish = () => {
-      if (!cancelled) hydrate();
-    };
-    try {
-      void Promise.resolve(useAppStore.persist.rehydrate()).then(
-        finish,
-        finish,
-      );
-    } catch {
-      finish();
-    }
-    const timeout = window.setTimeout(finish, 200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeout);
-    };
-  }, [hydrate]);
+  useEffect(() => bootPersistedStore(), [hydrate]);
 
   if (!hydrated) {
     return (

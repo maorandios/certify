@@ -12,7 +12,7 @@ import { ProcessingCapsule } from "./ProcessingCapsule";
 
 export function DesktopTopNav() {
   const pathname = usePathname();
-  const openComposer = useAppStore((state) => state.openComposer);
+  const openRequestCreate = useAppStore((state) => state.openRequestCreate);
 
   return (
     <header className="hidden shrink-0 bg-[#FFFDFB] lg:block">
@@ -33,23 +33,23 @@ export function DesktopTopNav() {
           </Link>
           <button
             type="button"
-            onClick={() => openComposer()}
+            onClick={() => openRequestCreate()}
             className="flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
           >
             <FilePlus2 className="size-4" aria-hidden />
-            {copy.upload}
+            {copy.navCreate}
           </button>
           <Link
-            href="/employees"
-            aria-current={pathname.startsWith("/employees") ? "page" : undefined}
+            href="/requests"
+            aria-current={pathname.startsWith("/requests") ? "page" : undefined}
             className={cn(
               "flex min-h-11 items-center rounded-full px-3 text-sm font-medium",
-              pathname.startsWith("/employees")
+              pathname.startsWith("/requests")
                 ? "bg-stone-100 text-[var(--ink)]"
                 : "text-stone-500 hover:bg-stone-50",
             )}
           >
-            {copy.employeesTitle}
+            {copy.requestsTitle}
           </Link>
         </nav>
         <div className="ms-auto flex items-center gap-1">

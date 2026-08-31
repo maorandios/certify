@@ -5,10 +5,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { DocumentAttention } from "@/lib/status";
-
 type DocumentPulseProps = {
-  attention: DocumentAttention;
+  attention: { needsReview: number; waiting: number; complete: number };
   activeCount: number;
 };
 
@@ -20,26 +18,26 @@ export function DocumentPulse({
 
   return (
     <section
-      aria-label="מצב מסמכים"
+      aria-label="מצב הגשות"
       className="grid min-h-[168px] w-full grid-cols-3 overflow-visible rounded-[52px] bg-[#2B2B2B] px-3 py-7"
     >
       <Segment
         icon={OctagonX}
-        label="פגי תוקף"
-        value={attention.expired}
+        label="דורש טיפול"
+        value={attention.needsReview}
         total={total}
       />
       <Segment
         icon={ClockFading}
-        label="לקראת פג תוקף"
-        value={attention.expiring}
+        label="ממתינים להגשות"
+        value={attention.waiting}
         total={total}
         divider
       />
       <Segment
         icon={SquareDashedMousePointer}
-        label="נדרש בדיקה"
-        value={attention.needsReview}
+        label="הושלמו"
+        value={attention.complete}
         total={total}
         divider
       />
