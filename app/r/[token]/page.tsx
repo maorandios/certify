@@ -117,6 +117,7 @@ function RequestUpload() {
       />
     );
   }
+  const liveRequest = request;
 
   if (request.status === "revoked") {
     return (
@@ -184,8 +185,8 @@ function RequestUpload() {
       if (openSlot) return id;
     }
     const worker = startWorkerDraft({
-      requestId: request.id,
-      submittedFullName: request.recipient.name,
+      requestId: liveRequest.id,
+      submittedFullName: liveRequest.recipient.name,
     });
     sessionWorkerIds.current.push(worker.id);
     return worker.id;
