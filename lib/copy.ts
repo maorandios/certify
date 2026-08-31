@@ -1,5 +1,5 @@
 import type { ActivityItem, ActivityType, UploadStage } from "./types";
-import type { RequestListBadge } from "./requests/types";
+import type { EventListStatus, RequestListBadge } from "./requests/types";
 
 export const statusLabels: Record<RequestListBadge, string> = {
   unopened: "טרם נפתחה",
@@ -15,6 +15,13 @@ export const statusBadgeLabels: Record<RequestListBadge, string> = {
   closed: "סגורה",
   expired: "פגה",
   revoked: "בוטלה",
+};
+
+export const eventStatusLabels: Record<EventListStatus, string> = {
+  open: "פתוח",
+  in_progress: "בתהליך",
+  completed: "הושלם",
+  cancelled: "בוטל",
 };
 
 export const uploadStageLabels: Record<UploadStage, string> = {
@@ -51,10 +58,10 @@ export const copy = {
   appTitle: "פעילות",
   appName: "סרטיפי",
   settingsTitle: "הגדרות",
-  requestsTitle: "בקשות",
+  requestsTitle: "אירועים",
   navFeed: "פיד",
   navCreate: "בקשה חדשה",
-  navUsers: "בקשות",
+  navUsers: "אירועים",
   upload: "העלאה",
   uploadDocument: "העלאה",
   processingOne: "מעבדים מסמך…",
@@ -82,13 +89,16 @@ export const copy = {
   confirmExpiryTitle: "אישור תאריך תוקף",
   evidenceCropLabel: "קטע מהמסמך",
 
-  requestsSearchPlaceholder: "חיפוש לפי שם בקשה או מקבל",
-  requestsEmptyTitle: "עדיין אין בקשות",
-  requestsEmptyBody: "צרו בקשת מסמכים ראשונה ושלחו קישור למקבל.",
+  requestsSearchPlaceholder: "חיפוש לפי שם אירוע או איש קשר",
+  requestsEmptyTitle: "עדיין אין אירועים",
+  requestsEmptyBody: "צרו אירוע ראשון ושלחו קישור לאיש הקשר.",
   requestsNoResultsTitle: "לא נמצאו תוצאות",
-  requestsNoResultsBody: (query: string) => `לא נמצאה בקשה שמתאימה ל־”${query}”`,
+  requestsNoResultsBody: (query: string) => `לא נמצא אירוע שמתאים ל־”${query}”`,
+  eventFilterAll: "הכל",
+  eventFilterAria: "סינון לפי סטטוס",
+  eventFilterEmpty: "אין אירועים בסטטוס זה",
   newRequest: "בקשה חדשה",
-  pickRequestForDetails: "בחרו בקשה מהרשימה כדי לראות את הפרטים",
+  pickRequestForDetails: "בחרו אירוע מהרשימה כדי לראות את הפרטים",
   requestNotFound: "הבקשה לא נמצאה",
 
   createRequestTitle: "יצירת אירוע חדש",
@@ -185,16 +195,33 @@ export const copy = {
   shareEmail: "שלח במייל",
 
   requestPageTitle: "העלאת מסמכים",
+  publicSlogan: "מערכת איסוף מסמכים אוטונומית",
+  operatorName: "מאור",
+  requestCollectTitle: "בקשה לאיסוף מסמכים",
+  requestHello: (name: string) => `שלום ${name},`,
+  requestLetterFrom: (sender: string, title: string) =>
+    `מצורפת בזו בקשה לקבלת מסמכים שהוגשה על ידי ${sender}, עבור ${title}.`,
+  requestLinkValidUntil: "תוקף קישור זה הינו עד",
   requestExplanation: (title: string) =>
     `התבקשת להגיש מסמכים עבור: ${title}. אפשר להוסיף כמה עובדים תחת אותו קישור.`,
+  requestLetterBody: (title: string) =>
+    `מצורפת בזו בקשה לקבלת מסמכים ממך עבור ${title}.`,
   requestPrivacyNote: "הקבצים ישמשו רק לבקשה הזו ולא יוצגו מחוץ לה.",
   requestUploadCta: "צילום או העלאת קובץ",
   requestUploading: "מעלים את הקובץ…",
   requestSuccessTitle: "ההגשה התקבלה, תודה!",
-  requestSuccessBody: "אפשר להוסיף עובד נוסף באותו קישור.",
-  requestAddAnother: "הוסף עובד נוסף",
+  requestSuccessBody: "אפשר לשלוח קבצים נוספים באותו קישור.",
+  requestAddAnother: "שליחת קבצים נוספים",
   requestAddWorker: "הוסף עובד",
   requestSubmitWorker: "שלח את העובד",
+  requestSubmitFiles: "שליחת קבצים",
+  requestAddFile: "הוספת קובץ",
+  requestRemoveFile: "הסרת קובץ",
+  requestFileCount: (n: number) => (n === 1 ? "קובץ אחד" : `${n} קבצים`),
+  requestMaxFileHint: "עד 10MB לקובץ",
+  requestInvalidType:
+    "אפשר להעלות JPG, JPEG, PNG, PDF, Word, Excel, PowerPoint, IFC או DWG בלבד",
+  requestFileTooLarge: "הקובץ גדול מדי. הגודל המרבי הוא 10MB.",
   requestExpiredTitle: "הקישור כבר לא בתוקף",
   requestExpiredBody: "אפשר לבקש קישור חדש ממי ששלח לך את ההודעה.",
   requestInvalidTitle: "הקישור לא נמצא",

@@ -3,9 +3,9 @@ import { copy } from "@/lib/copy";
 
 export function PublicBrand({ subtitle }: { subtitle?: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 text-center">
+    <div className="flex flex-col items-center gap-1.5 text-center">
       <span
-        className="flex size-12 items-center justify-center rounded-full bg-[var(--logo-mark,#FF5900)]"
+        className="flex size-[38px] items-center justify-center rounded-full bg-[var(--logo-mark,#FF5900)]"
         aria-hidden
       >
         <Zap
@@ -17,7 +17,7 @@ export function PublicBrand({ subtitle }: { subtitle?: string }) {
       <div>
         <p className="text-lg font-semibold text-[#2B2B2B]">{copy.appName}</p>
         {subtitle ? (
-          <p className="text-[13px] text-stone-500">{subtitle}</p>
+          <p className="mt-0.5 text-[12.5px] font-medium text-stone-400">{subtitle}</p>
         ) : null}
       </div>
     </div>

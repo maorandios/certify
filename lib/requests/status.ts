@@ -2,6 +2,7 @@ import type { ResolutionCase } from "../resolution/types";
 import type {
   DocumentRequest,
   RequestDocumentSubmission,
+  EventListStatus,
   RequestListBadge,
   RequestWorkerSubmission,
   RequestWorkerSubmissionStatus,
@@ -104,6 +105,21 @@ export function requestListBadge(
   if (live.status === "closed") return "closed";
   if (!live.openedAt) return "unopened";
   return "active";
+}
+
+export function eventListStatus(
+  request: DocumentRequest,
+  workers: RequestWorkerSubmission[],
+  now = new Date(),
+): EventListStatus {
+  const live = applyRequestExpiry(request, now);
+  if (live.status === "revoked") return "cancelled";
+  if (live.status === "closed") return "completed";
+  const hasSubmitted = workers.some(
+    (worker) => worker.requestId === request.id && isSubmittedWorker(worker),
+  );
+  if (hasSubmitted) return "in_progress";
+  return "open";
 }
 
 export function requestWorkerCounts(

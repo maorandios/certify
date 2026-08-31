@@ -140,6 +140,18 @@ export function createRequestSeed(now = new Date()): RequestSeed {
     closedAt: addDays(now, -1).toISOString(),
   });
 
+  const revoked = request({
+    id: "req-revoked",
+    title: "עבודות חשמל – אשדוד",
+    recipient: { name: "גלעד שמש", phone: "0504444444" },
+    labels: ["רישיון חשמלאי"],
+    expiresAt: addDays(now, 12).toISOString(),
+    createdAt: created,
+    openedAt: opened,
+    status: "revoked",
+    revokedAt: addDays(now, -1).toISOString(),
+  });
+
   const workerComplete: RequestWorkerSubmission = {
     id: "wsub-complete",
     requestId: multi.id,
@@ -206,7 +218,7 @@ export function createRequestSeed(now = new Date()): RequestSeed {
     },
   ];
 
-  const requests = [unopened, openedEmpty, multi, expiring, expired, closed];
+  const requests = [unopened, openedEmpty, multi, expiring, expired, closed, revoked];
   const activity: ActivityItem[] = [
     projectRequestActivity({
       id: "act-req-unopened",

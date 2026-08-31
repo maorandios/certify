@@ -108,3 +108,5 @@ export type RequestListBadge =
   | "closed"
   | "expired"
   | "revoked";
+
+export type EventListStatus = "open" | "in_progress" | "completed" | "cancelled";

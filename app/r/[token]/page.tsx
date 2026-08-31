@@ -2,29 +2,59 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
 import {
+  AlarmClock,
   Ban,
-  Camera,
   CheckCircle2,
+  ChevronDown,
+  CirclePlus,
+  CircleX,
+  CloudUpload,
   FileText,
-  ImageIcon,
+  Paperclip,
   LinkIcon,
+  LoaderCircle,
   TimerOff,
 } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { copy } from "@/lib/copy";
-import { formatHeDate } from "@/lib/dates";
+import { fileSizeLabel, formatHeDate } from "@/lib/dates";
 import { useAppStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { JobRunner } from "@/components/shell/JobRunner";
 import { PublicBrand } from "@/components/public/PublicBrand";
 import { PublicHydrator } from "@/components/public/PublicHydrator";
 
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const UPLOAD_MS = 900;
+const ACCEPTED_FILES = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".ifc",
+  ".dwg",
+].join(",");
+const ALLOWED_EXT = /\.(jpe?g|png|pdf|docx?|xlsx?|pptx?|ifc|dwg)$/i;
+const SLIDE = { type: "tween" as const, duration: 0.28, ease: [0.22, 1, 0.36, 1] as const };
+const submitClassName =
+  "min-h-[calc(3.5rem*1.15)] w-full border-[3px] !border-[#FFDCC9] text-[16.5px] !text-[#252525] [&_svg]:!text-[#252525]";
+
+type SlotFile = {
+  id: string;
+  file: File;
+  status: "uploading" | "ready";
+};
+
 function isAllowed(file: File) {
-  return (
-    file.type.startsWith("image/") ||
-    file.type === "application/pdf" ||
-    /\.(jpe?g|png|webp|heic|pdf)$/i.test(file.name)
-  );
+  return ALLOWED_EXT.test(file.name);
 }
 
 function Note({
@@ -52,16 +82,23 @@ function RequestUpload() {
   const startWorkerDraft = useAppStore((state) => state.startWorkerDraft);
   const attachSlotFile = useAppStore((state) => state.attachSlotFile);
   const submitWorker = useAppStore((state) => state.submitWorker);
-  const documentSubmissions = useAppStore((state) => state.documentSubmissions);
-  const [name, setName] = useState("");
-  const [identity, setIdentity] = useState("");
-  const [workerId, setWorkerId] = useState<string | null>(null);
+  const [filesBySlot, setFilesBySlot] = useState<Record<string, SlotFile[]>>({});
   const [done, setDone] = useState(false);
-  const [fileError, setFileError] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const openedAt = useMemo(() => new Date(), []);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const galleryRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [activeSlot, setActiveSlot] = useState<string | null>(null);
+  const [openSlots, setOpenSlots] = useState<Record<string, boolean>>({});
+  const sessionWorkerIds = useRef<string[]>([]);
+  const uploadTimers = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const timers = uploadTimers.current;
+    return () => {
+      Object.values(timers).forEach((id) => window.clearTimeout(id));
+    };
+  }, []);
+
 
   const request = requests.find((entry) => entry.token === params.token);
 
@@ -116,11 +153,12 @@ function RequestUpload() {
         <h2 className="text-lg font-semibold">{copy.requestSuccessTitle}</h2>
         <p className="max-w-sm text-[14px] text-stone-500">{copy.requestSuccessBody}</p>
         <Button
+          className={submitClassName}
           onClick={() => {
             setDone(false);
-            setWorkerId(null);
-            setName("");
-            setIdentity("");
+            setFilesBySlot({});
+            setFileError(null);
+            sessionWorkerIds.current = [];
           }}
         >
           {copy.requestAddAnother}
@@ -130,123 +168,233 @@ function RequestUpload() {
   }
 
   const slots = request.requestedDocuments;
-  const workerDocs = documentSubmissions.filter((doc) => doc.workerSubmissionId === workerId);
+  const allFiles = Object.values(filesBySlot).flat();
+  const uploading = allFiles.some((entry) => entry.status === "uploading");
+  const readyCount = allFiles.filter((entry) => entry.status === "ready").length;
 
-  function ensureWorker() {
-    if (workerId) return workerId;
+  function workerForSlot(slotId: string) {
+    const state = useAppStore.getState();
+    for (const id of sessionWorkerIds.current) {
+      const openSlot = state.documentSubmissions.find(
+        (entry) =>
+          entry.workerSubmissionId === id &&
+          entry.requestedDocumentId === slotId &&
+          !entry.sourceFileId,
+      );
+      if (openSlot) return id;
+    }
     const worker = startWorkerDraft({
-      requestId: request!.id,
-      submittedFullName: name.trim() || "עובד",
-      submittedIdentityNumber: identity.trim() || undefined,
+      requestId: request.id,
+      submittedFullName: request.recipient.name,
     });
-    setWorkerId(worker.id);
+    sessionWorkerIds.current.push(worker.id);
     return worker.id;
   }
 
-  function handleFile(slotId: string, files: FileList | null) {
-    const file = files?.[0];
-    if (!file) return;
-    if (!isAllowed(file)) {
-      setFileError(true);
-      return;
-    }
-    setFileError(false);
-    const id = ensureWorker();
+  function finishUpload(slotId: string, item: SlotFile) {
+    const workerId = workerForSlot(slotId);
     attachSlotFile({
-      workerSubmissionId: id,
+      workerSubmissionId: workerId,
       requestedDocumentId: slotId,
-      file,
+      file: item.file,
     });
+    setFilesBySlot((current) => ({
+      ...current,
+      [slotId]: (current[slotId] ?? []).map((entry) =>
+        entry.id === item.id ? { ...entry, status: "ready" } : entry,
+      ),
+    }));
+  }
+
+  function addFiles(slotId: string, list: FileList | null) {
+    if (!list?.length) return;
+    const next: SlotFile[] = [];
+    for (const file of Array.from(list)) {
+      if (!isAllowed(file)) {
+        setFileError(copy.requestInvalidType);
+        return;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        setFileError(copy.requestFileTooLarge);
+        return;
+      }
+      next.push({ id: crypto.randomUUID(), file, status: "uploading" });
+    }
+    setFileError(null);
+    setFilesBySlot((current) => ({
+      ...current,
+      [slotId]: [...(current[slotId] ?? []), ...next],
+    }));
+    for (const item of next) {
+      uploadTimers.current[item.id] = window.setTimeout(() => {
+        delete uploadTimers.current[item.id];
+        finishUpload(slotId, item);
+      }, UPLOAD_MS);
+    }
+  }
+
+  function removeFile(slotId: string, id: string) {
+    const timer = uploadTimers.current[id];
+    if (timer) {
+      window.clearTimeout(timer);
+      delete uploadTimers.current[id];
+    }
+    setFilesBySlot((current) => ({
+      ...current,
+      [slotId]: (current[slotId] ?? []).filter((entry) => entry.id !== id),
+    }));
+  }
+
+  function handleSubmit() {
+    if (!request || readyCount === 0 || uploading) return;
+    sessionWorkerIds.current.forEach((id) => submitWorker(id));
+    setDone(true);
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(28,25,23,0.05)]">
-        <h1 className="text-lg font-semibold">{request.title}</h1>
-        <p className="mt-1 text-[14px] text-stone-500">{copy.requestExplanation(request.title)}</p>
-        <p className="mt-2 text-[12.5px] text-stone-500">
-          {copy.requestExpiresOn(formatHeDate(request.expiresAt.slice(0, 10)))}
-        </p>
+    <div className="grid gap-5">
+      <div className="grid gap-3 rounded-[24px] bg-[#2B2B2B] px-[1.65rem] py-7 text-start">
+        <h2 className="flex items-center gap-2 font-semibold text-[#FF5900]">
+          <CloudUpload className="size-5 shrink-0" aria-hidden />
+          <span className="text-[13.6px]">{copy.requestCollectTitle}</span>
+        </h2>
+        <div className="text-[15px] leading-relaxed text-[#FFFDFB]/80">
+          <p>{copy.requestHello(request.recipient.name)}</p>
+          <p>{copy.requestLetterFrom(copy.operatorName, request.title)}</p>
+          <p className="mt-1 flex items-center gap-1.5 text-[13.5px] font-semibold">
+            <span>{copy.requestLinkValidUntil}</span>
+            <AlarmClock className="size-3.5 shrink-0" aria-hidden />
+            <span>{formatHeDate(request.expiresAt.slice(0, 10))}</span>
+          </p>
+        </div>
       </div>
-      <div className="grid gap-3 rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(28,25,23,0.05)]">
-        <input
-          className="min-h-11 rounded-full border border-[var(--line)] px-4 text-[15px]"
-          placeholder={copy.formFullName}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-        />
-        <input
-          className="min-h-11 rounded-full border border-[var(--line)] px-4 text-[15px]"
-          placeholder={copy.formIdentity}
-          value={identity}
-          onChange={(event) => setIdentity(event.target.value)}
-        />
-        {slots.map((slot) => {
-          const doc = workerDocs.find((entry) => entry.requestedDocumentId === slot.id);
+      <div className="grid gap-3">
+        {slots.map((slot, index) => {
+          const files = filesBySlot[slot.id] ?? [];
+          const expanded = openSlots[slot.id] ?? index === 0;
           return (
-            <div key={slot.id} className="grid gap-2 rounded-[16px] border border-[var(--line)] px-4 py-3">
-              <p className="text-[14px] font-medium">{slot.label}</p>
-              {slot.instructions ? (
-                <p className="text-[12.5px] text-stone-500">{slot.instructions}</p>
-              ) : null}
-              <p className="text-[12.5px] text-stone-500">
-                {doc?.sourceFileId ? copy.slotAccepted : copy.slotMissing}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={() => {
-                    setActiveSlot(slot.id);
-                    galleryRef.current?.click();
-                  }}
-                >
-                  <ImageIcon className="size-4" aria-hidden />
-                  {copy.gallery}
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="flex-1"
-                  onClick={() => {
-                    setActiveSlot(slot.id);
-                    cameraRef.current?.click();
-                  }}
-                >
-                  <Camera className="size-4" aria-hidden />
-                  {copy.camera}
-                </Button>
-              </div>
+            <div
+              key={slot.id}
+              className="overflow-hidden rounded-[20px] border border-[#2B2B2B] bg-transparent"
+            >
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-start"
+                aria-expanded={expanded}
+                onClick={() =>
+                  setOpenSlots((current) => ({
+                    ...current,
+                    [slot.id]: !expanded,
+                  }))
+                }
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <FileText className="size-4 shrink-0 text-stone-400" aria-hidden />
+                  <span className="truncate text-[13.5px] font-semibold text-[#252525]">
+                    {slot.label}
+                    {files.length ? (
+                      <>
+                        <span className="px-1.5 font-normal text-stone-300" aria-hidden>
+                          ·
+                        </span>
+                        <span className="font-medium text-stone-400">
+                          {copy.requestFileCount(files.length)}
+                        </span>
+                      </>
+                    ) : null}
+                  </span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "size-4 shrink-0 text-stone-400 transition-transform duration-300",
+                    expanded && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </button>
+              <AnimatePresence initial={false}>
+                {expanded ? (
+                  <motion.div
+                    key="body"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={SLIDE}
+                    className="min-w-0 overflow-hidden"
+                  >
+                    <div className="grid min-w-0 gap-2 px-4 pb-4">
+                      {files.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="flex min-w-0 items-center gap-2 overflow-hidden rounded-full border border-[var(--line)] px-3 py-2"
+                        >
+                          <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                            <Paperclip className="size-4 shrink-0 text-stone-400" aria-hidden />
+                            <span className="min-w-0 flex-1 truncate text-[12.15px] font-medium text-[#252525]">
+                              {entry.file.name}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-[10.8px] text-stone-400">
+                            {fileSizeLabel(entry.file.size)}
+                          </span>
+                          {entry.status === "uploading" ? (
+                            <span className="flex size-7 shrink-0 items-center justify-center text-stone-400">
+                              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="flex size-7 shrink-0 items-center justify-center text-stone-400"
+                              aria-label={copy.requestRemoveFile}
+                              onClick={() => removeFile(slot.id, entry.id)}
+                            >
+                              <CircleX className="size-4" aria-hidden />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 self-start py-1 text-[12.15px] font-medium text-stone-400"
+                        onClick={() => {
+                          setActiveSlot(slot.id);
+                          window.setTimeout(() => fileRef.current?.click(), 0);
+                        }}
+                      >
+                        <CirclePlus className="size-[18px]" aria-hidden />
+                        {copy.requestAddFile}
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </div>
           );
         })}
-        {fileError ? <p className="text-[13px] text-[var(--status-bad)]">{copy.requestFileError}</p> : null}
+      </div>
+      {fileError ? <p className="text-[13px] text-[var(--status-bad)]">{fileError}</p> : null}
+      <div className="grid gap-2">
         <Button
-          disabled={!name.trim()}
-          onClick={() => {
-            const id = ensureWorker();
-            submitWorker(id);
-            setDone(true);
-          }}
+          className={submitClassName}
+          disabled={readyCount === 0 || uploading}
+          onClick={handleSubmit}
         >
-          <FileText className="size-4" aria-hidden />
-          {copy.requestSubmitWorker}
+          {copy.requestSubmitFiles}
         </Button>
-        <p className="text-[12px] text-stone-400">{copy.requestPrivacyNote}</p>
+        <p className="text-center text-[12px] text-stone-400">
+          {copy.requestMaxFileHint} · {copy.requestPrivacyNote}
+        </p>
       </div>
       <input
-        ref={galleryRef}
+        ref={fileRef}
         type="file"
-        accept="image/*,application/pdf"
+        multiple
+        accept={ACCEPTED_FILES}
         className="hidden"
-        onChange={(event) => activeSlot && handleFile(activeSlot, event.target.files)}
-      />
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(event) => activeSlot && handleFile(activeSlot, event.target.files)}
+        onChange={(event) => {
+          if (activeSlot) addFiles(activeSlot, event.target.files);
+          event.target.value = "";
+        }}
       />
     </div>
   );
@@ -257,8 +405,8 @@ export default function PublicRequestPage() {
     <PublicHydrator>
       <div className="min-h-svh bg-[#FFFDFB] px-4 py-6">
         <JobRunner />
-        <div className="mx-auto grid max-w-md gap-5">
-          <PublicBrand />
+        <div className="mx-auto grid max-w-md gap-6">
+          <PublicBrand subtitle={copy.publicSlogan} />
           <RequestUpload />
         </div>
       </div>

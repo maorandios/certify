@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { ResolutionCase } from "../resolution/types";
-import { getSubmissionPulse, pulseBucketForWorker } from "./status";
-import type { RequestDocumentSubmission, RequestWorkerSubmission } from "./types";
+import { eventListStatus, getSubmissionPulse, pulseBucketForWorker } from "./status";
+import type {
+  DocumentRequest,
+  RequestDocumentSubmission,
+  RequestWorkerSubmission,
+} from "./types";
 
 function worker(patch: Partial<RequestWorkerSubmission>): RequestWorkerSubmission {
   return {
@@ -65,5 +69,43 @@ describe("submission pulse", () => {
       },
     ];
     expect(pulseBucketForWorker(worker({ status: "processing" }), [doc({})], cases)).toBe("waiting");
+  });
+});
+
+function request(patch: Partial<DocumentRequest> = {}): DocumentRequest {
+  return {
+    id: "r1",
+    title: "אירוע",
+    recipient: { name: "דני" },
+    requestedDocuments: [],
+    expiresAt: "2026-10-01T00:00:00.000Z",
+    status: "active",
+    token: "t",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    messageHe: "",
+    ...patch,
+  };
+}
+
+describe("event list status", () => {
+  const now = new Date("2026-08-31T12:00:00.000Z");
+
+  it("maps revoked to cancelled and closed to completed", () => {
+    expect(eventListStatus(request({ status: "revoked" }), [], now)).toBe("cancelled");
+    expect(eventListStatus(request({ status: "closed" }), [], now)).toBe("completed");
+  });
+
+  it("treats events without submissions as open", () => {
+    expect(eventListStatus(request({ status: "active" }), [], now)).toBe("open");
+    expect(
+      eventListStatus(request({ status: "expired", expiresAt: "2026-08-01T00:00:00.000Z" }), [], now),
+    ).toBe("open");
+  });
+
+  it("treats events with submitted workers as in progress", () => {
+    expect(eventListStatus(request(), [worker({ requestId: "r1" })], now)).toBe("in_progress");
+    expect(
+      eventListStatus(request(), [worker({ requestId: "r1", status: "draft", submittedAt: undefined })], now),
+    ).toBe("open");
   });
 });
